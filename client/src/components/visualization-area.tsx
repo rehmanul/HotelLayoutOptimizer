@@ -48,14 +48,14 @@ export default function VisualizationArea({
     onSuccess: () => {
       toast({
         title: "PDF Export",
-        description: "PDF exported successfully!"
+        description: "Analysis exported successfully."
       });
     }
   });
 
   const exportImageMutation = useMutation({
     mutationFn: async (analysisId: number) => {
-      const response = await fetch(`/api/analysis/${analysisId}/export/png`);
+      const response = await fetch(`/api/analysis/${analysisId}/export/image`);
       const blob = await response.blob();
       const url = window.URL.createObjectURL(blob);
       const a = document.createElement('a');
@@ -69,12 +69,11 @@ export default function VisualizationArea({
     onSuccess: () => {
       toast({
         title: "Image Export",
-        description: "Image exported successfully!"
+        description: "Analysis image exported successfully."
       });
     }
   });
 
-  // Canvas drawing logic
   useEffect(() => {
     const canvas = canvasRef.current;
     if (!canvas) return;
@@ -82,109 +81,78 @@ export default function VisualizationArea({
     const ctx = canvas.getContext('2d');
     if (!ctx) return;
 
-    // Set canvas size
-    canvas.width = canvas.offsetWidth;
-    canvas.height = canvas.offsetHeight;
+    const resizeCanvas = () => {
+      const container = canvas.parentElement;
+      if (container) {
+        canvas.width = container.clientWidth;
+        canvas.height = container.clientHeight;
+        drawCanvas();
+      }
+    };
 
-    // Clear canvas
-    ctx.clearRect(0, 0, canvas.width, canvas.height);
+    const drawCanvas = () => {
+      ctx.clearRect(0, 0, canvas.width, canvas.height);
+      
+      // Draw grid
+      drawGrid(ctx, canvas.width, canvas.height, canvasState);
+      
+      // Draw analysis results if available
+      if (currentAnalysis) {
+        drawAnalysisResults(ctx, currentAnalysis, canvasState);
+      }
+    };
 
-    // Draw grid background
-    drawGrid(ctx, canvas.width, canvas.height, canvasState);
+    resizeCanvas();
+    drawCanvas();
 
-    if (currentAnalysis?.zonesDetected) {
-      drawAnalysisResults(ctx, currentAnalysis, canvasState);
-    }
+    window.addEventListener('resize', resizeCanvas);
+    return () => window.removeEventListener('resize', resizeCanvas);
   }, [currentAnalysis, canvasState]);
 
   const drawGrid = (ctx: CanvasRenderingContext2D, width: number, height: number, state: CanvasState) => {
     const gridSize = 20 * state.zoom;
-    
-    ctx.strokeStyle = '#404040';
-    ctx.lineWidth = 1;
+    ctx.strokeStyle = '#3A3A3A';
+    ctx.lineWidth = 0.5;
+    ctx.globalAlpha = 0.5;
 
-    // Vertical lines
-    for (let x = state.panX % gridSize; x < width; x += gridSize) {
+    for (let x = (state.panX % gridSize); x < width; x += gridSize) {
       ctx.beginPath();
       ctx.moveTo(x, 0);
       ctx.lineTo(x, height);
       ctx.stroke();
     }
 
-    // Horizontal lines
-    for (let y = state.panY % gridSize; y < height; y += gridSize) {
+    for (let y = (state.panY % gridSize); y < height; y += gridSize) {
       ctx.beginPath();
       ctx.moveTo(0, y);
       ctx.lineTo(width, y);
       ctx.stroke();
     }
+    ctx.globalAlpha = 1;
   };
 
   const drawAnalysisResults = (ctx: CanvasRenderingContext2D, analysis: Analysis, state: CanvasState) => {
-    const zones = analysis.zonesDetected as any;
-    const ilots = analysis.ilotsPlaced as any[];
-    const corridors = analysis.corridorsGenerated as any[];
+    const results = analysis.results ? JSON.parse(analysis.results) : null;
+    if (!results) return;
+
+    const { zones, ilots, corridors } = results;
 
     // Draw walls
     if (zones?.walls) {
       ctx.strokeStyle = '#000000';
       ctx.lineWidth = 3;
       zones.walls.forEach((wall: any) => {
-        if (wall.coordinates) {
+        if (wall.coordinates && wall.coordinates.length >= 2) {
           ctx.beginPath();
-          wall.coordinates.forEach((coord: number[], index: number) => {
-            const x = coord[0] * state.zoom + state.panX;
-            const y = coord[1] * state.zoom + state.panY;
-            if (index === 0) {
-              ctx.moveTo(x, y);
-            } else {
-              ctx.lineTo(x, y);
-            }
-          });
-          ctx.stroke();
-        }
-      });
-    }
-
-    // Draw restricted areas
-    if (zones?.restricted) {
-      ctx.fillStyle = '#4A90E2';
-      ctx.globalAlpha = 0.3;
-      zones.restricted.forEach((area: any) => {
-        if (area.coordinates) {
-          ctx.beginPath();
-          area.coordinates.forEach((coord: number[], index: number) => {
-            const x = coord[0] * state.zoom + state.panX;
-            const y = coord[1] * state.zoom + state.panY;
-            if (index === 0) {
-              ctx.moveTo(x, y);
-            } else {
-              ctx.lineTo(x, y);
-            }
-          });
-          ctx.closePath();
-          ctx.fill();
-        }
-      });
-      ctx.globalAlpha = 1;
-    }
-
-    // Draw entrances
-    if (zones?.entrances) {
-      ctx.strokeStyle = '#D0021B';
-      ctx.lineWidth = 5;
-      zones.entrances.forEach((entrance: any) => {
-        if (entrance.coordinates) {
-          ctx.beginPath();
-          entrance.coordinates.forEach((coord: number[], index: number) => {
-            const x = coord[0] * state.zoom + state.panX;
-            const y = coord[1] * state.zoom + state.panY;
-            if (index === 0) {
-              ctx.moveTo(x, y);
-            } else {
-              ctx.lineTo(x, y);
-            }
-          });
+          const startX = wall.coordinates[0][0] * state.zoom + state.panX;
+          const startY = wall.coordinates[0][1] * state.zoom + state.panY;
+          ctx.moveTo(startX, startY);
+          
+          for (let i = 1; i < wall.coordinates.length; i++) {
+            const x = wall.coordinates[i][0] * state.zoom + state.panX;
+            const y = wall.coordinates[i][1] * state.zoom + state.panY;
+            ctx.lineTo(x, y);
+          }
           ctx.stroke();
         }
       });
@@ -192,7 +160,7 @@ export default function VisualizationArea({
 
     // Draw corridors
     if (corridors) {
-      ctx.fillStyle = '#F5A623';
+      ctx.fillStyle = '#FFA500';
       ctx.globalAlpha = 0.6;
       corridors.forEach((corridor: any) => {
         const x = corridor.x * state.zoom + state.panX;
@@ -281,184 +249,143 @@ export default function VisualizationArea({
   };
 
   return (
-    <div className="visualization-area flex-1 flex flex-col">
-      {/* Visualization Header */}
-      <div className="bg-dark-secondary border-b border-dark-tertiary p-4">
-        <div className="flex items-center justify-between">
-          <div className="flex items-center space-x-4">
-            <h3 className="text-lg font-semibold text-text-primary">2D Visualization</h3>
-            <div className="flex items-center space-x-2">
-              <button
-                onClick={handleFitToScreen}
-                className="bg-dark-tertiary hover:bg-gray-600 text-text-primary px-3 py-1 rounded text-sm transition-colors"
-              >
-                <i className="fas fa-expand mr-1"></i>
-                Fit to Screen
-              </button>
-              <button
-                onClick={handleZoomIn}
-                className="bg-dark-tertiary hover:bg-gray-600 text-text-primary px-3 py-1 rounded text-sm transition-colors"
-              >
-                <i className="fas fa-search-plus mr-1"></i>
-                Zoom In
-              </button>
-              <button
-                onClick={handleZoomOut}
-                className="bg-dark-tertiary hover:bg-gray-600 text-text-primary px-3 py-1 rounded text-sm transition-colors"
-              >
-                <i className="fas fa-search-minus mr-1"></i>
-                Zoom Out
-              </button>
-            </div>
-          </div>
-          <div className="flex items-center space-x-2">
-            <button
-              onClick={() => currentAnalysis && exportPdfMutation.mutate(currentAnalysis.id)}
-              disabled={!currentAnalysis || exportPdfMutation.isPending}
-              className="bg-accent-blue hover:bg-blue-600 text-white px-4 py-2 rounded-lg text-sm font-medium transition-colors disabled:opacity-50"
-            >
-              <i className="fas fa-download mr-2"></i>
-              Export PDF
-            </button>
-            <button
-              onClick={() => currentAnalysis && exportImageMutation.mutate(currentAnalysis.id)}
-              disabled={!currentAnalysis || exportImageMutation.isPending}
-              className="bg-accent-orange hover:bg-orange-600 text-white px-4 py-2 rounded-lg text-sm font-medium transition-colors disabled:opacity-50"
-            >
-              <i className="fas fa-image mr-2"></i>
-              Export Image
-            </button>
-          </div>
-        </div>
-      </div>
-      
-      {/* Canvas Area */}
-      <div className="flex-1 relative bg-dark-primary">
+    <div className="visualization-area flex-1 flex flex-col relative">
+      {/* Canvas Container */}
+      <div className="flex-1 relative bg-dark-primary overflow-hidden">
         <canvas
           ref={canvasRef}
-          className="absolute inset-0 w-full h-full cursor-crosshair"
+          className="absolute inset-0 w-full h-full"
           onMouseDown={handleCanvasMouseDown}
           style={{ 
             cursor: canvasState.selectedTool === 'pan' ? 'grab' : 'crosshair',
-            background: 'linear-gradient(45deg, #2A2A2A 25%, transparent 25%), linear-gradient(-45deg, #2A2A2A 25%, transparent 25%), linear-gradient(45deg, transparent 75%, #2A2A2A 75%), linear-gradient(-45deg, transparent 75%, #2A2A2A 75%)',
-            backgroundSize: '20px 20px',
-            backgroundPosition: '0 0, 0 10px, 10px -10px, -10px 0px'
           }}
         />
         
-        {/* Empty State */}
+        {/* No Floor Plan Message */}
         {!currentProject && (
           <div className="absolute inset-0 flex items-center justify-center">
             <div className="text-center">
-              <i className="fas fa-file-upload text-6xl text-text-secondary mb-4"></i>
-              <h3 className="text-xl font-semibold text-text-primary mb-2">No Floor Plan Loaded</h3>
+              <h3 className="text-xl font-medium text-text-primary mb-2">No Floor Plan Loaded</h3>
               <p className="text-text-secondary">Upload a DXF file to begin visualization and analysis</p>
             </div>
           </div>
         )}
         
-        {/* Legend Overlay - Responsive positioning */}
-        <div className="absolute top-4 right-4 bg-dark-secondary bg-opacity-95 backdrop-blur-sm rounded-lg p-3 lg:p-4 w-48 lg:w-64 border border-dark-tertiary max-w-[calc(100vw-2rem)] lg:max-w-none">
-          <h4 className="text-text-primary font-semibold mb-2 lg:mb-3 text-sm lg:text-base">Legend</h4>
-          <div className="space-y-1 lg:space-y-2">
-            <div className="flex items-center space-x-2 lg:space-x-3">
-              <div className="w-3 h-0.5 lg:w-4 lg:h-1 bg-black flex-shrink-0"></div>
-              <span className="text-text-primary text-xs lg:text-sm">Walls</span>
-            </div>
-            <div className="flex items-center space-x-2 lg:space-x-3">
-              <div className="w-3 h-3 lg:w-4 lg:h-4 bg-accent-blue rounded flex-shrink-0"></div>
-              <span className="text-text-primary text-xs lg:text-sm">Restricted Areas</span>
-            </div>
-            <div className="flex items-center space-x-2 lg:space-x-3">
-              <div className="w-3 h-3 lg:w-4 lg:h-4 bg-status-red rounded flex-shrink-0"></div>
-              <span className="text-text-primary text-xs lg:text-sm">Entrances/Exits</span>
-            </div>
-            <div className="flex items-center space-x-2 lg:space-x-3">
-              <div className="w-3 h-3 lg:w-4 lg:h-4 bg-status-green rounded flex-shrink-0"></div>
-              <span className="text-text-primary text-xs lg:text-sm">Îlots</span>
-            </div>
-            <div className="flex items-center space-x-2 lg:space-x-3">
-              <div className="w-3 h-3 lg:w-4 lg:h-4 bg-accent-orange rounded flex-shrink-0"></div>
-              <span className="text-text-primary text-xs lg:text-sm">Corridors</span>
-            </div>
-          </div>
-        </div>
-        
-        {/* Toolbar Overlay - Responsive positioning */}
-        <div className="absolute bottom-4 left-4 bg-dark-secondary bg-opacity-95 backdrop-blur-sm rounded-lg p-2 lg:p-4 border border-dark-tertiary">
-          <div className="flex items-center space-x-1 lg:space-x-2">
+        {/* Toolbar - Fixed position at top left */}
+        <div className="absolute top-4 left-4 z-10">
+          <div className="flex items-center space-x-2 bg-dark-secondary bg-opacity-95 backdrop-blur-sm rounded-lg p-2 border border-dark-tertiary shadow-lg">
             <button
               onClick={() => handleToolSelect('select')}
-              className={`p-2 rounded transition-colors ${
-                canvasState.selectedTool === 'select' 
-                  ? 'bg-accent-blue text-white' 
-                  : 'bg-dark-tertiary hover:bg-gray-600 text-text-primary'
-              }`}
+              className={`p-2 rounded transition-colors ${canvasState.selectedTool === 'select' ? 'bg-accent-blue text-white' : 'bg-dark-tertiary hover:bg-gray-600 text-text-primary'}`}
               title="Select Tool"
             >
-              <i className="fas fa-mouse-pointer"></i>
+              <i className="fas fa-mouse-pointer text-sm"></i>
             </button>
             <button
               onClick={() => handleToolSelect('pan')}
-              className={`p-2 rounded transition-colors ${
-                canvasState.selectedTool === 'pan' 
-                  ? 'bg-accent-blue text-white' 
-                  : 'bg-dark-tertiary hover:bg-gray-600 text-text-primary'
-              }`}
+              className={`p-2 rounded transition-colors ${canvasState.selectedTool === 'pan' ? 'bg-accent-blue text-white' : 'bg-dark-tertiary hover:bg-gray-600 text-text-primary'}`}
               title="Pan Tool"
             >
-              <i className="fas fa-hand-paper"></i>
+              <i className="fas fa-hand-paper text-sm"></i>
             </button>
             <button
               onClick={() => handleToolSelect('measure')}
-              className={`p-2 rounded transition-colors ${
-                canvasState.selectedTool === 'measure' 
-                  ? 'bg-accent-blue text-white' 
-                  : 'bg-dark-tertiary hover:bg-gray-600 text-text-primary'
-              }`}
+              className={`p-2 rounded transition-colors ${canvasState.selectedTool === 'measure' ? 'bg-accent-blue text-white' : 'bg-dark-tertiary hover:bg-gray-600 text-text-primary'}`}
               title="Measure Tool"
             >
-              <i className="fas fa-ruler"></i>
-            </button>
-            <div className="border-l border-dark-tertiary mx-2 h-8"></div>
-            <button
-              className="bg-accent-blue hover:bg-blue-600 text-white p-2 rounded transition-colors"
-              title="Add Îlot"
-            >
-              <i className="fas fa-plus"></i>
+              <i className="fas fa-ruler text-sm"></i>
             </button>
             <button
-              className="bg-accent-orange hover:bg-orange-600 text-white p-2 rounded transition-colors"
-              title="Add Corridor"
+              onClick={() => handleToolSelect('zoom')}
+              className={`p-2 rounded transition-colors ${canvasState.selectedTool === 'zoom' ? 'bg-accent-blue text-white' : 'bg-dark-tertiary hover:bg-gray-600 text-text-primary'}`}
+              title="Zoom Tool"
             >
-              <i className="fas fa-road"></i>
+              <i className="fas fa-search-plus text-sm"></i>
             </button>
           </div>
         </div>
         
-        {/* Analysis Status - Responsive positioning */}
-        {currentAnalysis && (
-          <div className="absolute top-4 left-4 bg-dark-secondary bg-opacity-95 backdrop-blur-sm rounded-lg p-3 lg:p-4 border border-dark-tertiary max-w-[calc(100vw-20rem)] lg:max-w-none">
-            <div className="flex items-center space-x-2 lg:space-x-3">
-              <div className={`w-2 h-2 lg:w-3 lg:h-3 rounded-full flex-shrink-0 ${
-                currentAnalysis.status === 'completed' ? 'bg-status-green' :
-                currentAnalysis.status === 'running' ? 'bg-status-yellow' :
-                currentAnalysis.status === 'failed' ? 'bg-status-red' :
-                'bg-text-secondary'
-              }`}></div>
-              <span className="text-text-primary font-medium text-xs lg:text-sm">
-                Analysis {currentAnalysis.status === 'completed' ? 'Complete' : 
-                        currentAnalysis.status === 'running' ? 'Running' :
-                        currentAnalysis.status === 'failed' ? 'Failed' : 'Pending'}
-              </span>
-            </div>
-            {currentAnalysis.status === 'completed' && (
-              <div className="mt-1 lg:mt-2 text-text-secondary text-xs lg:text-sm">
-                {currentAnalysis.totalIlots} îlots • {((currentAnalysis.coverage || 0) * 100).toFixed(1)}% coverage
-              </div>
-            )}
+        {/* Zoom Controls - Fixed position at top right */}
+        <div className="absolute top-4 right-4 z-10">
+          <div className="flex items-center space-x-2 bg-dark-secondary bg-opacity-95 backdrop-blur-sm rounded-lg p-2 border border-dark-tertiary shadow-lg">
+            <button
+              onClick={handleFitToScreen}
+              className="bg-dark-tertiary hover:bg-gray-600 text-text-primary px-3 py-1 rounded text-sm transition-colors"
+              title="Fit to Screen"
+            >
+              Fit to Screen
+            </button>
+            <button
+              onClick={handleZoomIn}
+              className="bg-dark-tertiary hover:bg-gray-600 text-text-primary px-3 py-1 rounded text-sm transition-colors"
+              title="Zoom In"
+            >
+              <i className="fas fa-search-plus mr-1"></i>
+              Zoom In
+            </button>
+            <button
+              onClick={handleZoomOut}
+              className="bg-dark-tertiary hover:bg-gray-600 text-text-primary px-3 py-1 rounded text-sm transition-colors"
+              title="Zoom Out"
+            >
+              <i className="fas fa-search-minus mr-1"></i>
+              Zoom Out
+            </button>
           </div>
-        )}
+        </div>
+
+        {/* Export Controls - Fixed position at bottom right */}
+        <div className="absolute bottom-4 right-4 z-10">
+          <div className="flex items-center space-x-2 bg-dark-secondary bg-opacity-95 backdrop-blur-sm rounded-lg p-2 border border-dark-tertiary shadow-lg">
+            <button
+              onClick={() => currentAnalysis && exportPdfMutation.mutate(currentAnalysis.id)}
+              disabled={!currentAnalysis || exportPdfMutation.isPending}
+              className="bg-accent-blue hover:bg-blue-600 text-white px-3 py-1 rounded text-sm font-medium transition-colors disabled:opacity-50"
+              title="Export PDF"
+            >
+              <i className="fas fa-download mr-1"></i>
+              Export PDF
+            </button>
+            <button
+              onClick={() => currentAnalysis && exportImageMutation.mutate(currentAnalysis.id)}
+              disabled={!currentAnalysis || exportImageMutation.isPending}
+              className="bg-accent-orange hover:bg-orange-600 text-white px-3 py-1 rounded text-sm font-medium transition-colors disabled:opacity-50"
+              title="Export Image"
+            >
+              <i className="fas fa-image mr-1"></i>
+              Export Image
+            </button>
+          </div>
+        </div>
+        
+        {/* Legend - Fixed position at bottom left */}
+        <div className="absolute bottom-4 left-4 z-10">
+          <div className="bg-dark-secondary bg-opacity-95 backdrop-blur-sm rounded-lg p-3 border border-dark-tertiary shadow-lg w-48">
+            <h4 className="text-text-primary font-semibold mb-2 text-sm">Legend</h4>
+            <div className="space-y-1">
+              <div className="flex items-center space-x-2">
+                <div className="w-3 h-0.5 bg-black flex-shrink-0"></div>
+                <span className="text-text-primary text-xs">Walls</span>
+              </div>
+              <div className="flex items-center space-x-2">
+                <div className="w-3 h-3 bg-accent-blue rounded flex-shrink-0"></div>
+                <span className="text-text-primary text-xs">Restricted Areas</span>
+              </div>
+              <div className="flex items-center space-x-2">
+                <div className="w-3 h-3 bg-status-red rounded flex-shrink-0"></div>
+                <span className="text-text-primary text-xs">Entrances/Exits</span>
+              </div>
+              <div className="flex items-center space-x-2">
+                <div className="w-3 h-3 bg-status-green rounded flex-shrink-0"></div>
+                <span className="text-text-primary text-xs">Îlots</span>
+              </div>
+              <div className="flex items-center space-x-2">
+                <div className="w-3 h-3 bg-accent-orange rounded flex-shrink-0"></div>
+                <span className="text-text-primary text-xs">Corridors</span>
+              </div>
+            </div>
+          </div>
+        </div>
       </div>
     </div>
   );
