@@ -21,7 +21,7 @@ export default function Analyzer() {
     currentAnalysis: null,
     activeTab: "analysis"
   });
-  
+
   const { toast } = useToast();
   const queryClient = useQueryClient();
 
@@ -56,13 +56,13 @@ export default function Analyzer() {
     onError: (error: any) => {
       console.error("Project creation error:", error);
       let errorMessage = "Failed to create project. Please try again.";
-      
+
       if (error?.response?.data?.errors) {
         errorMessage = error.response.data.errors.join(', ');
       } else if (error?.response?.data?.message) {
         errorMessage = error.response.data.message;
       }
-      
+
       toast({
         title: "Error",
         description: errorMessage,
@@ -115,18 +115,21 @@ export default function Analyzer() {
     }
   });
 
-  const handleProjectUpload = (file: File, projectName: string, description: string) => {
-    console.log("Creating project with:", { projectName, description, fileName: file.name });
+  const handleProjectUpload = async (file: File, name: string, description: string) => {
+    console.log('Creating project with:', { projectName: name, description, fileName: file.name });
+    console.log('File object:', file);
+    console.log('File size:', file.size);
+    console.log('File type:', file.type);
+
     const formData = new FormData();
-    formData.append('dxfFile', file);
-    formData.append('name', projectName);
+    formData.append('dxfFile', file, file.name);
+    formData.append('name', name);
     formData.append('description', description);
-    
-    // Debug FormData contents
-    for (let [key, value] of formData.entries()) {
-      console.log(`FormData ${key}:`, value);
-    }
-    
+
+    console.log('FormData dxfFile:', formData.get('dxfFile'));
+    console.log('FormData name:', formData.get('name'));
+    console.log('FormData description:', formData.get('description'));
+
     createProjectMutation.mutate(formData);
   };
 
@@ -159,7 +162,7 @@ export default function Analyzer() {
         currentProject={state.currentProject}
         onProjectSelect={(project) => setState(prev => ({ ...prev, currentProject: project }))}
       />
-      
+
       <div className="flex-1 flex flex-col">
         {/* Top Bar */}
         <div className="bg-dark-secondary border-b border-dark-tertiary p-4">
@@ -198,7 +201,7 @@ export default function Analyzer() {
             onConfigurationChange={handleConfigurationSave}
             isUploading={createProjectMutation.isPending}
           />
-          
+
           <VisualizationArea
             currentProject={state.currentProject}
             currentAnalysis={state.currentAnalysis}
