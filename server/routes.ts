@@ -57,7 +57,8 @@ export async function registerRoutes(app: Express): Promise<Server> {
       const projects = await storage.getProjectsByUser(userId);
       res.json(projects);
     } catch (error) {
-      res.status(500).json({ message: "Failed to fetch projects" });
+      console.error("Error fetching projects:", error);
+      res.status(500).json({ message: "Failed to fetch projects", error: error instanceof Error ? error.message : String(error) });
     }
   });
 

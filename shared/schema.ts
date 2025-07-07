@@ -7,46 +7,46 @@ export const users = pgTable("users", {
   id: serial("id").primaryKey(),
   username: text("username").notNull().unique(),
   password: text("password").notNull(),
-  createdAt: timestamp("created_at").defaultNow(),
+  createdAt: timestamp("createdat").defaultNow(),
 });
 
 export const projects = pgTable("projects", {
   id: serial("id").primaryKey(),
   name: text("name").notNull(),
   description: text("description"),
-  userId: integer("user_id").references(() => users.id),
-  dxfData: jsonb("dxf_data"),
-  floorPlanImage: text("floor_plan_image"),
-  createdAt: timestamp("created_at").defaultNow(),
-  updatedAt: timestamp("updated_at").defaultNow(),
+  userId: integer("userid").references(() => users.id),
+  dxfData: jsonb("dxfdata"),
+  floorPlanImage: text("floorplanimage"),
+  createdAt: timestamp("createdat").defaultNow(),
+  updatedAt: timestamp("updatedat").defaultNow(),
 });
 
 export const configurations = pgTable("configurations", {
   id: serial("id").primaryKey(),
-  projectId: integer("project_id").references(() => projects.id),
+  projectId: integer("projectid").references(() => projects.id),
   name: text("name").notNull(),
-  ilotDistribution: jsonb("ilot_distribution").notNull(), // {size0to1: 10, size1to3: 25, size3to5: 30, size5to10: 35}
-  corridorWidth: real("corridor_width").notNull().default(1.5),
-  minClearance: real("min_clearance").notNull().default(0.5),
-  autoGenerateCorridors: boolean("auto_generate_corridors").notNull().default(true),
-  spaceOptimization: boolean("space_optimization").notNull().default(true),
-  avoidOverlaps: boolean("avoid_overlaps").notNull().default(true),
-  respectConstraints: boolean("respect_constraints").notNull().default(true),
-  createdAt: timestamp("created_at").defaultNow(),
+  ilotDistribution: jsonb("ilotdistribution").notNull(), // {size0to1: 10, size1to3: 25, size3to5: 30, size5to10: 35}
+  corridorWidth: real("corridorwidth").notNull().default(1.5),
+  minClearance: real("minclearance").notNull().default(0.5),
+  autoGenerateCorridors: boolean("autogeneratecorridors").notNull().default(true),
+  spaceOptimization: boolean("spaceoptimization").notNull().default(true),
+  avoidOverlaps: boolean("avoidoverlaps").notNull().default(true),
+  respectConstraints: boolean("respectconstraints").notNull().default(true),
+  createdAt: timestamp("createdat").defaultNow(),
 });
 
 export const analyses = pgTable("analyses", {
   id: serial("id").primaryKey(),
-  projectId: integer("project_id").references(() => projects.id),
-  configurationId: integer("configuration_id").references(() => configurations.id),
+  projectId: integer("projectid").references(() => projects.id),
+  configurationId: integer("configurationid").references(() => configurations.id),
   status: text("status").notNull().default("pending"), // pending, running, completed, failed
-  zonesDetected: jsonb("zones_detected"), // walls, restricted, entrances
-  ilotsPlaced: jsonb("ilots_placed"), // array of ilot objects with position, size
-  corridorsGenerated: jsonb("corridors_generated"), // array of corridor objects
-  totalIlots: integer("total_ilots").default(0),
+  zonesDetected: jsonb("zonesdetected"), // walls, restricted, entrances
+  ilotsPlaced: jsonb("ilotsplaced"), // array of ilot objects with position, size
+  corridorsGenerated: jsonb("corridorsgenerated"), // array of corridor objects
+  totalIlots: integer("totalilots").default(0),
   coverage: real("coverage").default(0),
-  createdAt: timestamp("created_at").defaultNow(),
-  completedAt: timestamp("completed_at"),
+  createdAt: timestamp("createdat").defaultNow(),
+  completedAt: timestamp("completedat"),
 });
 
 export const usersRelations = relations(users, ({ many }) => ({
