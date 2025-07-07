@@ -72,15 +72,25 @@ export default function ConfigPanel({
     const files = Array.from(e.dataTransfer.files);
     const dxfFile = files.find(file => file.name.toLowerCase().endsWith('.dxf') || file.name.toLowerCase().endsWith('.dwg'));
     
-    if (dxfFile) {
-      console.log('Dropped file:', dxfFile);
-      console.log('File size:', dxfFile.size);
-      console.log('File type:', dxfFile.type);
-      handleFileUpload(dxfFile);
+    if (dxfFile && dxfFile.size > 0) {
+      console.log('Dropped file:', {
+        name: dxfFile.name,
+        size: dxfFile.size,
+        type: dxfFile.type,
+        lastModified: dxfFile.lastModified
+      });
+      
+      // Create a new File object to ensure it's properly formed
+      const properFile = new File([dxfFile], dxfFile.name, {
+        type: dxfFile.type || 'application/octet-stream',
+        lastModified: dxfFile.lastModified
+      });
+      
+      handleFileUpload(properFile);
     } else {
       toast({
         title: "Invalid File",
-        description: "Please upload a DXF or DWG file.",
+        description: "Please upload a valid DXF or DWG file.",
         variant: "destructive"
       });
     }
@@ -88,8 +98,24 @@ export default function ConfigPanel({
 
   const handleFileInputChange = (e: React.ChangeEvent<HTMLInputElement>) => {
     const file = e.target.files?.[0];
-    if (file) {
-      handleFileUpload(file);
+    if (file && file.size > 0) {
+      console.log('Selected file:', {
+        name: file.name,
+        size: file.size,
+        type: file.type,
+        lastModified: file.lastModified
+      });
+      
+      // Create a new File object to ensure consistency
+      const properFile = new File([file], file.name, {
+        type: file.type || 'application/octet-stream',
+        lastModified: file.lastModified
+      });
+      
+      handleFileUpload(properFile);
+      
+      // Reset the input
+      e.target.value = '';
     }
   };
 

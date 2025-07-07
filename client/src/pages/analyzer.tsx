@@ -116,19 +116,41 @@ export default function Analyzer() {
   });
 
   const handleProjectUpload = async (file: File, name: string, description: string) => {
-    console.log('Creating project with:', { projectName: name, description, fileName: file.name });
-    console.log('File object:', file);
-    console.log('File size:', file.size);
-    console.log('File type:', file.type);
+    console.log("Creating project with:", { projectName: name, description, fileName: file.name });
+
+    // Validate file before upload
+    if (!file || file.size === 0) {
+      toast({
+        title: "Invalid File",
+        description: "Please select a valid file.",
+        variant: "destructive"
+      });
+      return;
+    }
+
+    if (!file.name.toLowerCase().endsWith('.dxf') && !file.name.toLowerCase().endsWith('.dwg')) {
+      toast({
+        title: "Invalid File Type",
+        description: "Please upload a DXF or DWG file.",
+        variant: "destructive"
+      });
+      return;
+    }
 
     const formData = new FormData();
     formData.append('dxfFile', file, file.name);
-    formData.append('name', name);
-    formData.append('description', description);
+    formData.append('name', name.trim());
+    formData.append('description', description.trim());
 
-    console.log('FormData dxfFile:', formData.get('dxfFile'));
-    console.log('FormData name:', formData.get('name'));
-    console.log('FormData description:', formData.get('description'));
+    // Verify FormData contents
+    const uploadedFile = formData.get('dxfFile') as File;
+    console.log("FormData validation:", {
+      hasFile: !!uploadedFile,
+      fileName: uploadedFile?.name,
+      fileSize: uploadedFile?.size,
+      name: formData.get('name'),
+      description: formData.get('description')
+    });
 
     createProjectMutation.mutate(formData);
   };
