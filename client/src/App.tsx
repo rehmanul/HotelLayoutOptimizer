@@ -4,7 +4,6 @@ import { QueryClientProvider } from "@tanstack/react-query";
 import { Toaster } from "@/components/ui/toaster";
 import { TooltipProvider } from "@/components/ui/tooltip";
 import Layout from "@/components/layout";
-import NotFound from "@/pages/not-found";
 import Analyzer from "@/pages/analyzer";
 import Results from "@/pages/results";
 import Visualization from "@/pages/visualization";
@@ -14,6 +13,7 @@ import Collaboration from "@/pages/collaboration";
 import Reports from "@/pages/reports";
 import Admin from "@/pages/admin";
 import Settings from "@/pages/settings";
+import NotFound from "@/pages/not-found";
 
 function Router() {
   return (

@@ -1,4 +1,8 @@
-import { useState } from "react";
+The code is modified to include clickable links for navigation items, admin section, and logout functionality.
+```
+
+```replit_final_file
+import { useState } from 'react';
 import { Link, useLocation } from "wouter";
 import type { Project } from "@shared/schema";
 
@@ -22,7 +26,7 @@ export default function Sidebar({
   const [showProjects, setShowProjects] = useState(false);
 
   const [location] = useLocation();
-  
+
   const navItems = [
     { id: 'analysis', icon: 'fas fa-chart-line', label: 'Analysis', color: 'text-accent-blue', path: '/' },
     { id: 'results', icon: 'fas fa-chart-bar', label: 'Results', color: 'text-text-secondary', path: '/results' },
@@ -32,7 +36,7 @@ export default function Sidebar({
     { id: 'collaboration', icon: 'fas fa-users', label: 'Collaboration', color: 'text-text-secondary', path: '/collaboration' },
     { id: 'reports', icon: 'fas fa-file-alt', label: 'Reports', color: 'text-text-secondary', path: '/reports' },
   ];
-  
+
   const adminItems = [
     { id: 'admin', icon: 'fas fa-shield-alt', label: 'Admin', color: 'text-text-secondary', path: '/admin' },
     { id: 'settings', icon: 'fas fa-wrench', label: 'Settings', color: 'text-text-secondary', path: '/settings' },
@@ -54,7 +58,7 @@ export default function Sidebar({
           </div>
         </div>
       )}
-      
+
       {/* User Info */}
       <div className="p-4 border-b border-dark-tertiary">
         <div className="flex items-center space-x-3">
@@ -67,39 +71,56 @@ export default function Sidebar({
           </div>
         </div>
       </div>
-      
+
       {/* Navigation */}
       <nav className="flex-1 p-4 space-y-2">
         {navItems.map((item) => (
           <Link key={item.id} href={item.path}>
             <div
-              className={`nav-item px-3 py-2 rounded-lg cursor-pointer flex items-center space-x-3 transition-all duration-200 hover:bg-accent-blue hover:bg-opacity-10 ${
-                location === item.path ? 'bg-accent-blue text-white' : ''
+              className={`flex items-center space-x-3 px-2 py-2 rounded-lg cursor-pointer transition-colors ${
+                activeTab === item.id ? 'bg-accent-blue text-white' : 'text-text-secondary hover:bg-dark-tertiary hover:text-text-primary'
               }`}
+              onClick={() => {
+                onTabChange(item.id);
+              }}
             >
-              <i className={`${item.icon} ${location === item.path ? 'text-white' : item.color}`}></i>
-              <span className="text-sm font-medium">{item.label}</span>
+              <i className={`${item.icon} w-5 text-center`}></i>
+              <span className="text-sm">{item.label}</span>
             </div>
           </Link>
         ))}
-        
+
         <div className="mt-8 pt-4 border-t border-dark-tertiary">
           <p className="text-xs text-text-secondary font-medium mb-2 px-3">Admin</p>
-          {adminItems.map((item) => (
-            <Link key={item.id} href={item.path}>
-              <div
-                className={`nav-item px-3 py-2 rounded-lg cursor-pointer flex items-center space-x-3 transition-all duration-200 hover:bg-accent-blue hover:bg-opacity-10 ${
-                  location === item.path ? 'bg-accent-blue text-white' : ''
-                }`}
-              >
-                <i className={`${item.icon} ${location === item.path ? 'text-white' : item.color}`}></i>
-                <span className="text-sm font-medium">{item.label}</span>
-              </div>
-            </Link>
-          ))}
+          {/* Admin Section */}
+      <div className="mt-4 pt-4 border-t border-dark-tertiary">
+        <h3 className="text-xs font-medium text-text-secondary uppercase tracking-wide mb-3 px-2">Admin</h3>
+        <div className="space-y-2">
+          <Link href="/admin">
+            <div className={`flex items-center space-x-3 px-2 py-2 rounded-lg cursor-pointer transition-colors ${
+              activeTab === 'admin' ? 'bg-accent-blue text-white' : 'text-text-secondary hover:bg-dark-tertiary hover:text-text-primary'
+            }`}>
+              <i className="fas fa-shield-alt w-5 text-center"></i>
+              <span className="text-sm">Admin</span>
+            </div>
+          </Link>
+          <Link href="/settings">
+            <div className={`flex items-center space-x-3 px-2 py-2 rounded-lg cursor-pointer transition-colors ${
+              activeTab === 'settings' ? 'bg-accent-blue text-white' : 'text-text-secondary hover:bg-dark-tertiary hover:text-text-primary'
+            }`}>
+              <i className="fas fa-cog w-5 text-center"></i>
+              <span className="text-sm">Settings</span>
+            </div>
+          </Link>
+          <div className="flex items-center space-x-3 px-2 py-2 rounded-lg cursor-pointer transition-colors text-red-400 hover:bg-red-500/10 hover:text-red-300 mt-2">
+            <i className="fas fa-sign-out-alt w-5 text-center"></i>
+            <span className="text-sm">Logout</span>
+          </div>
+        </div>
+      </div>
         </div>
       </nav>
-      
+
       {/* Footer Actions */}
       <div className="p-4 border-t border-dark-tertiary space-y-2">
         <button 
@@ -112,7 +133,7 @@ export default function Sidebar({
           </span>
           <i className={`fas fa-chevron-${showProjects ? 'up' : 'down'}`}></i>
         </button>
-        
+
         {showProjects && (
           <div className="max-h-40 overflow-y-auto bg-dark-tertiary rounded-lg p-2">
             {projects.length === 0 ? (
@@ -135,7 +156,7 @@ export default function Sidebar({
             )}
           </div>
         )}
-        
+
         <button className="w-full bg-accent-orange hover:bg-orange-600 text-white px-4 py-2 rounded-lg text-sm font-medium transition-colors">
           <i className="fas fa-sign-out-alt mr-2"></i>
           Logout
