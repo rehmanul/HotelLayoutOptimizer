@@ -9,7 +9,6 @@ import type { Project, Configuration, Analysis } from "@shared/schema";
 
 interface AnalyzerState {
   currentProject: Project | null;
-  currentConfiguration: Configuration | null;
   currentAnalysis: Analysis | null;
   activeTab: string;
 }
@@ -17,7 +16,6 @@ interface AnalyzerState {
 export default function Analyzer() {
   const [state, setState] = useState<AnalyzerState>({
     currentProject: null,
-    currentConfiguration: null,
     currentAnalysis: null,
     activeTab: "analysis"
   });
@@ -71,31 +69,13 @@ export default function Analyzer() {
     }
   });
 
-  const createConfigurationMutation = useMutation({
-    mutationFn: async (configData: any) => {
-      const response = await apiRequest('POST', `/api/projects/${state.currentProject?.id}/configurations`, configData);
-      return response.json();
-    },
-    onSuccess: (configuration) => {
-      queryClient.invalidateQueries({ queryKey: ['/api/projects', state.currentProject?.id, 'configurations'] });
-      setState(prev => ({ ...prev, currentConfiguration: configuration }));
-      toast({
-        title: "Configuration Saved",
-        description: "Your analysis configuration has been saved."
-      });
-    },
-    onError: () => {
-      toast({
-        title: "Error",
-        description: "Failed to save configuration. Please try again.",
-        variant: "destructive"
-      });
-    }
-  });
+
 
   const startAnalysisMutation = useMutation({
     mutationFn: async (analysisData: any) => {
-      const response = await apiRequest('POST', `/api/projects/${state.currentProject?.id}/analyses`, analysisData);
+      const response = await apiRequest('POST', `/api/projects/${analysisData.projectId}/analyses`, {
+        status: "pending"
+      });
       return response.json();
     },
     onSuccess: (analysis) => {
@@ -155,18 +135,12 @@ export default function Analyzer() {
     createProjectMutation.mutate(formData);
   };
 
-  const handleConfigurationSave = (configData: any) => {
-    if (!state.currentProject) return;
-    createConfigurationMutation.mutate({
-      ...configData,
-      name: `Configuration ${Date.now()}`
-    });
-  };
-
   const handleAnalysisStart = () => {
-    if (!state.currentProject || !state.currentConfiguration) return;
+    if (!state.currentProject) return;
+    
+    // Start analysis directly with the project
     startAnalysisMutation.mutate({
-      configurationId: state.currentConfiguration.id,
+      projectId: state.currentProject.id,
       status: "pending"
     });
   };
@@ -182,25 +156,22 @@ export default function Analyzer() {
         <div className="flex flex-col lg:flex-row lg:items-center lg:justify-between gap-4">
           <div className="flex items-center space-x-3">
             <i className="fas fa-wrench text-accent-blue"></i>
-            <h2 className="text-lg lg:text-xl font-semibold text-text-primary">Analysis Configuration</h2>
+            <h2 className="text-lg lg:text-xl font-semibold text-text-primary">Floor Plan Analysis</h2>
           </div>
           <div className="flex flex-col sm:flex-row items-stretch sm:items-center space-y-2 sm:space-y-0 sm:space-x-4">
-            <button 
-              onClick={() => handleConfigurationSave(state.currentConfiguration)}
-              disabled={!state.currentProject}
-              className="bg-dark-tertiary hover:bg-gray-600 text-text-primary px-4 py-2 rounded-lg text-sm font-medium transition-colors disabled:opacity-50"
-            >
-              <i className="fas fa-save mr-2"></i>
-              <span className="hidden sm:inline">Save Project</span>
-              <span className="sm:hidden">Save</span>
-            </button>
+            {state.currentProject && (
+              <div className="flex items-center space-x-2 text-text-secondary text-sm">
+                <i className="fas fa-check-circle text-accent-green"></i>
+                <span>Project saved automatically</span>
+              </div>
+            )}
             <button 
               onClick={handleAnalysisStart}
-              disabled={!state.currentProject || !state.currentConfiguration || startAnalysisMutation.isPending}
+              disabled={!state.currentProject || startAnalysisMutation.isPending}
               className="bg-status-green hover:bg-green-600 text-white px-4 py-2 rounded-lg text-sm font-medium transition-colors disabled:opacity-50"
             >
-              <i className="fas fa-play mr-2"></i>
-              {startAnalysisMutation.isPending ? 'Starting...' : 'Start Analysis'}
+              <i className="fas fa-sync-alt mr-2"></i>
+              {startAnalysisMutation.isPending ? 'Reanalysing...' : 'Reanalyze'}
             </button>
           </div>
         </div>
