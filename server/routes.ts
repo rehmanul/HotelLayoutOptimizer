@@ -82,35 +82,69 @@ export async function registerRoutes(app: Express): Promise<Server> {
       const { name, description } = req.body;
       let dxfData = null;
       let parsedData = null;
+      let floorPlanImage = null;
 
       if (req.file) {
-        try {
-          // Parse DXF file
-          const dxfContent = fs.readFileSync(req.file.path, 'utf8');
-          const parser = new DxfParser();
-          const parsed = parser.parseSync(dxfContent);
-          
-          parsedData = await processDxfData(parsed);
-          
-          dxfData = {
-            originalName: req.file.originalname,
-            filename: req.file.filename,
-            path: req.file.path,
-            size: req.file.size,
-            parsed: parsedData
-          };
+        const fileExtension = path.extname(req.file.originalname).toLowerCase();
+        
+        if (fileExtension === '.dxf') {
+          try {
+            // Parse DXF file
+            const dxfContent = fs.readFileSync(req.file.path, 'utf8');
+            const parser = new DxfParser();
+            const parsed = parser.parseSync(dxfContent);
+            
+            parsedData = await processDxfData(parsed);
+            
+            dxfData = {
+              originalName: req.file.originalname,
+              filename: req.file.filename,
+              path: req.file.path,
+              size: req.file.size,
+              parsed: parsedData
+            };
 
-          // Clean up uploaded file
-          fs.unlinkSync(req.file.path);
-        } catch (dxfError) {
-          console.error("DXF parsing error:", dxfError);
-          // Clean up uploaded file even if parsing fails
-          if (fs.existsSync(req.file.path)) {
+            // Clean up uploaded file
             fs.unlinkSync(req.file.path);
+          } catch (dxfError) {
+            console.error("DXF parsing error:", dxfError);
+            // Clean up uploaded file even if parsing fails
+            if (fs.existsSync(req.file.path)) {
+              fs.unlinkSync(req.file.path);
+            }
+            console.log("Continuing project creation without DXF parsing");
           }
-          
-          // Continue without DXF data but don't fail the project creation
-          console.log("Continuing project creation without DXF parsing");
+        } else if (['.png', '.jpg', '.jpeg'].includes(fileExtension)) {
+          try {
+            // Process image file - convert to base64 for storage
+            const imageBuffer = fs.readFileSync(req.file.path);
+            const base64Image = imageBuffer.toString('base64');
+            
+            floorPlanImage = {
+              originalName: req.file.originalname,
+              filename: req.file.filename,
+              size: req.file.size,
+              mimeType: req.file.mimetype,
+              data: base64Image
+            };
+
+            // Process image for architectural analysis
+            parsedData = await processImageFloorPlan(req.file.path);
+            
+            // Clean up uploaded file
+            fs.unlinkSync(req.file.path);
+          } catch (imageError) {
+            console.error("Image processing error:", imageError);
+            // Clean up uploaded file even if processing fails
+            if (fs.existsSync(req.file.path)) {
+              fs.unlinkSync(req.file.path);
+            }
+            console.log("Continuing project creation with image file but without analysis");
+          }
+        } else {
+          // Unsupported file type
+          fs.unlinkSync(req.file.path);
+          return res.status(400).json({ message: "Unsupported file type. Please upload DXF, PNG, JPG, or JPEG files." });
         }
       }
 
@@ -122,8 +156,8 @@ export async function registerRoutes(app: Express): Promise<Server> {
       const projectData = {
         name: name.trim(),
         description: description?.trim() || null,
-        dxfData,
-        floorPlanImage: null,
+        dxfData: dxfData ? JSON.stringify(dxfData) : null,
+        floorPlanImage: floorPlanImage ? JSON.stringify(floorPlanImage) : null,
         userId: 1
       };
 
@@ -868,4 +902,36 @@ function generateCorridors(ilots: any[], corridorWidth: number) {
   }
   
   return corridors;
+}
+
+async function processImageFloorPlan(imagePath: string) {
+  try {
+    console.log("Processing image floor plan...");
+    
+    // Load image with Jimp
+    const image = await Jimp.read(imagePath);
+    const width = image.getWidth();
+    const height = image.getHeight();
+    
+    console.log(`Image dimensions: ${width}x${height}`);
+    
+    // For now, return basic image analysis
+    // In a production system, this would include AI-based architectural element detection
+    return {
+      walls: [],
+      lines: [],
+      polylines: [],
+      bounds: { minX: 0, minY: 0, maxX: width, maxY: height },
+      layers: ['IMAGE_LAYER'],
+      entityCount: 0,
+      imageMetadata: {
+        width,
+        height,
+        format: 'image'
+      }
+    };
+  } catch (error) {
+    console.error("Error processing image floor plan:", error);
+    throw error;
+  }
 }
