@@ -8,6 +8,7 @@ interface SidebarProps {
   projects: Project[];
   currentProject: Project | null;
   onProjectSelect: (project: Project) => void;
+  isMobile?: boolean;
 }
 
 export default function Sidebar({ 
@@ -15,7 +16,8 @@ export default function Sidebar({
   onTabChange, 
   projects, 
   currentProject, 
-  onProjectSelect 
+  onProjectSelect,
+  isMobile = false
 }: SidebarProps) {
   const [showProjects, setShowProjects] = useState(false);
 
@@ -37,19 +39,21 @@ export default function Sidebar({
   ];
 
   return (
-    <div className="w-60 bg-dark-secondary border-r border-dark-tertiary flex flex-col">
-      {/* Header */}
-      <div className="p-4 border-b border-dark-tertiary">
-        <div className="flex items-center space-x-3">
-          <div className="w-8 h-8 bg-accent-blue rounded-lg flex items-center justify-center">
-            <i className="fas fa-cube text-white text-sm"></i>
-          </div>
-          <div>
-            <h1 className="text-lg font-semibold text-text-primary">Professional Floor Plan</h1>
-            <p className="text-xs text-text-secondary">Analyzer</p>
+    <div id="sidebar" className="w-full h-full bg-dark-secondary border-r border-dark-tertiary flex flex-col">
+      {/* Header - Hidden on mobile since it's in the top bar */}
+      {!isMobile && (
+        <div className="p-4 border-b border-dark-tertiary">
+          <div className="flex items-center space-x-3">
+            <div className="w-8 h-8 bg-accent-blue rounded-lg flex items-center justify-center">
+              <i className="fas fa-cube text-white text-sm"></i>
+            </div>
+            <div>
+              <h1 className="text-lg font-semibold text-text-primary">Professional Floor Plan</h1>
+              <p className="text-xs text-text-secondary">Analyzer</p>
+            </div>
           </div>
         </div>
-      </div>
+      )}
       
       {/* User Info */}
       <div className="p-4 border-b border-dark-tertiary">

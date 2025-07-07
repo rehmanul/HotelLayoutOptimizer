@@ -38,13 +38,13 @@ export default function AIOptimization() {
   };
 
   return (
-    <div className="p-8 max-w-7xl mx-auto">
-      <div className="mb-8">
-        <h1 className="text-4xl font-bold text-text-primary mb-2 flex items-center gap-3">
-          <Brain className="h-10 w-10 text-accent-blue" />
+    <div className="p-4 lg:p-8 max-w-7xl mx-auto">
+      <div className="mb-6 lg:mb-8">
+        <h1 className="text-2xl lg:text-4xl font-bold text-text-primary mb-2 flex items-center gap-3">
+          <Brain className="h-8 w-8 lg:h-10 lg:w-10 text-accent-blue" />
           AI Optimization
         </h1>
-        <p className="text-text-secondary">Leverage artificial intelligence to optimize your floor plan layouts</p>
+        <p className="text-text-secondary text-sm lg:text-base">Leverage artificial intelligence to optimize your floor plan layouts</p>
       </div>
 
       <Tabs defaultValue="optimize" className="space-y-6">
@@ -101,7 +101,7 @@ export default function AIOptimization() {
             </CardContent>
           </Card>
 
-          <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
+          <div className="grid grid-cols-1 lg:grid-cols-3 gap-4 lg:gap-6">
             <Card className="bg-dark-secondary border-dark-tertiary">
               <CardHeader>
                 <CardTitle className="text-text-primary text-lg">Space Efficiency</CardTitle>

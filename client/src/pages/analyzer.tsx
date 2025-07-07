@@ -179,19 +179,20 @@ export default function Analyzer() {
     <div className="flex flex-col h-full bg-dark-primary text-text-primary">
       {/* Top Bar */}
       <div className="bg-dark-secondary border-b border-dark-tertiary p-4">
-        <div className="flex items-center justify-between">
+        <div className="flex flex-col lg:flex-row lg:items-center lg:justify-between gap-4">
           <div className="flex items-center space-x-3">
             <i className="fas fa-wrench text-accent-blue"></i>
-            <h2 className="text-xl font-semibold text-text-primary">Advanced Analysis Configuration</h2>
+            <h2 className="text-lg lg:text-xl font-semibold text-text-primary">Analysis Configuration</h2>
           </div>
-          <div className="flex items-center space-x-4">
+          <div className="flex flex-col sm:flex-row items-stretch sm:items-center space-y-2 sm:space-y-0 sm:space-x-4">
             <button 
               onClick={() => handleConfigurationSave(state.currentConfiguration)}
               disabled={!state.currentProject}
               className="bg-dark-tertiary hover:bg-gray-600 text-text-primary px-4 py-2 rounded-lg text-sm font-medium transition-colors disabled:opacity-50"
             >
               <i className="fas fa-save mr-2"></i>
-              Save Project
+              <span className="hidden sm:inline">Save Project</span>
+              <span className="sm:hidden">Save</span>
             </button>
             <button 
               onClick={handleAnalysisStart}
@@ -206,43 +207,47 @@ export default function Analyzer() {
       </div>
 
       {/* Main Workspace */}
-      <div className="flex-1 flex">
-        <ConfigPanel
-          currentProject={state.currentProject}
-          currentConfiguration={state.currentConfiguration}
-          onProjectUpload={handleProjectUpload}
-          onConfigurationChange={handleConfigurationSave}
-          isUploading={createProjectMutation.isPending}
-        />
+      <div className="flex-1 flex flex-col lg:flex-row">
+        <div className="w-full lg:w-1/3 border-b lg:border-b-0 lg:border-r border-dark-tertiary">
+          <ConfigPanel
+            currentProject={state.currentProject}
+            currentConfiguration={state.currentConfiguration}
+            onProjectUpload={handleProjectUpload}
+            onConfigurationChange={handleConfigurationSave}
+            isUploading={createProjectMutation.isPending}
+          />
+        </div>
 
-        <VisualizationArea
-          currentProject={state.currentProject}
-          currentAnalysis={state.currentAnalysis}
-          analyses={analyses || []}
-        />
+        <div className="flex-1 min-h-0">
+          <VisualizationArea
+            currentProject={state.currentProject}
+            currentAnalysis={state.currentAnalysis}
+            analyses={analyses || []}
+          />
+        </div>
       </div>
 
       {/* Status Bar */}
       <div className="bg-dark-secondary border-t border-dark-tertiary px-4 py-2">
-        <div className="flex items-center justify-between">
-          <div className="flex items-center space-x-4">
+        <div className="flex flex-col lg:flex-row lg:items-center lg:justify-between gap-2">
+          <div className="flex flex-wrap items-center gap-4">
             <div className="flex items-center space-x-2">
               <div className="w-2 h-2 bg-status-green rounded-full"></div>
-              <span className="text-text-secondary text-sm">Database Connected</span>
+              <span className="text-text-secondary text-xs lg:text-sm">Database Connected</span>
             </div>
             <div className="flex items-center space-x-2">
               <div className="w-2 h-2 bg-status-yellow rounded-full"></div>
-              <span className="text-text-secondary text-sm">Analysis Ready</span>
+              <span className="text-text-secondary text-xs lg:text-sm">Analysis Ready</span>
             </div>
           </div>
-          <div className="flex items-center space-x-4">
-            <span className="text-text-secondary text-sm">
+          <div className="flex flex-wrap items-center gap-4">
+            <span className="text-text-secondary text-xs lg:text-sm">
               Total Îlots: <span className="text-text-primary font-medium">{state.currentAnalysis?.totalIlots || 0}</span>
             </span>
-            <span className="text-text-secondary text-sm">
+            <span className="text-text-secondary text-xs lg:text-sm">
               Coverage: <span className="text-text-primary font-medium">{((state.currentAnalysis?.coverage || 0) * 100).toFixed(1)}%</span>
             </span>
-            <span className="text-text-secondary text-sm">
+            <span className="text-text-secondary text-xs lg:text-sm">
               Version: <span className="text-text-primary font-medium">Pro 2.1.0</span>
             </span>
           </div>
