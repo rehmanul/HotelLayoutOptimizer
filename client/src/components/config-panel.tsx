@@ -65,9 +65,9 @@ export default function ConfigPanel({
         variant: "destructive"
       });
     }
-  }, [projectName, projectDescription]);
+  }, [toast]);
 
-  const handleFileUpload = (file: File) => {
+  const handleFileUpload = useCallback((file: File) => {
     if (!projectName.trim()) {
       toast({
         title: "Project Name Required",
@@ -80,7 +80,7 @@ export default function ConfigPanel({
     onProjectUpload(file, projectName, projectDescription);
     setProjectName("");
     setProjectDescription("");
-  };
+  }, [projectName, projectDescription, onProjectUpload, toast]);
 
   const handleFileInputChange = (e: React.ChangeEvent<HTMLInputElement>) => {
     const file = e.target.files?.[0];
