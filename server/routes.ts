@@ -93,10 +93,16 @@ export async function registerRoutes(app: Express): Promise<Server> {
           try {
             // Parse DXF/DWG file
             const dxfContent = fs.readFileSync(req.file.path, 'utf8');
+            console.log(`DXF file size: ${dxfContent.length} characters`);
+            
             const parser = new DxfParser();
             const parsed = parser.parseSync(dxfContent);
             
+            console.log(`DXF parsed - Entities: ${parsed.entities?.length || 0}, Layers: ${Object.keys(parsed.layers || {}).length}`);
+            
             parsedData = await processDxfData(parsed);
+            
+            console.log(`Zones detected - Walls: ${parsedData.zones.walls.length}, Entrances: ${parsedData.zones.entrances.length}, Restricted: ${parsedData.zones.restricted.length}`);
             
             dxfData = {
               originalName: req.file.originalname,
@@ -613,10 +619,15 @@ async function processDxfData(dxf: any) {
     maxY: -Infinity
   };
 
+  console.log(`Processing DXF with ${dxf.entities?.length || 0} entities`);
+  
   // Process entities from all layers
   if (dxf.entities && Array.isArray(dxf.entities)) {
-    dxf.entities.forEach((entity: any) => {
+    dxf.entities.forEach((entity: any, index: number) => {
       try {
+        if (index % 1000 === 0) {
+          console.log(`Processing entity ${index}/${dxf.entities.length}`);
+        }
         // Update bounds
         if (entity.vertices && Array.isArray(entity.vertices)) {
           entity.vertices.forEach((vertex: any) => {
@@ -654,7 +665,11 @@ async function processDxfData(dxf: any) {
           
           // Only add entities with valid coordinates
           if (coordinates.length > 0) {
-            if (layerName.includes('wall') || layerName.includes('mur') || color === 0) {
+            // More comprehensive wall detection
+            if (layerName.includes('wall') || layerName.includes('mur') || layerName.includes('walls') ||
+                layerName.includes('0') || layerName === '' || layerName.includes('contour') ||
+                layerName.includes('outline') || layerName.includes('perimeter') ||
+                color === 0 || color === 7 || color === 8) {
               zones.walls.push({
                 id: zones.walls.length + 1,
                 type: 'wall',
@@ -662,17 +677,12 @@ async function processDxfData(dxf: any) {
                 color: '#000000',
                 layer: entity.layer
               });
-            } else if (layerName.includes('restricted') || layerName.includes('stair') || 
-                       layerName.includes('elevator') || color === 4) {
-              zones.restricted.push({
-                id: zones.restricted.length + 1,
-                type: 'restricted',
-                coordinates,
-                color: '#4A90E2',
-                layer: entity.layer
-              });
-            } else if (layerName.includes('entrance') || layerName.includes('door') || 
-                       layerName.includes('entry') || color === 1) {
+            } 
+            // Door detection
+            else if (layerName.includes('door') || layerName.includes('porte') || 
+                     layerName.includes('entrance') || layerName.includes('entry') ||
+                     layerName.includes('opening') || layerName.includes('fenetre') ||
+                     layerName.includes('window') || color === 1 || color === 2) {
               zones.entrances.push({
                 id: zones.entrances.length + 1,
                 type: 'entrance',
@@ -680,6 +690,33 @@ async function processDxfData(dxf: any) {
                 color: '#D0021B',
                 layer: entity.layer
               });
+            }
+            // Restricted areas (stairs, elevators, etc.)
+            else if (layerName.includes('restricted') || layerName.includes('stair') || 
+                     layerName.includes('escalier') || layerName.includes('elevator') ||
+                     layerName.includes('ascenseur') || layerName.includes('toilet') ||
+                     layerName.includes('wc') || layerName.includes('bath') ||
+                     color === 4 || color === 5) {
+              zones.restricted.push({
+                id: zones.restricted.length + 1,
+                type: 'restricted',
+                coordinates,
+                color: '#4A90E2',
+                layer: entity.layer
+              });
+            }
+            // If no specific classification, treat long lines as potential walls
+            else if (coordinates.length >= 2) {
+              const length = calculateLineLength(coordinates);
+              if (length > 100) { // Lines longer than 100 units likely to be walls
+                zones.walls.push({
+                  id: zones.walls.length + 1,
+                  type: 'wall',
+                  coordinates,
+                  color: '#808080',
+                  layer: entity.layer || 'unclassified'
+                });
+              }
             }
           }
         }
@@ -701,6 +738,18 @@ async function processDxfData(dxf: any) {
     layers: dxf.layers || [],
     entityCount: dxf.entities?.length || 0
   };
+}
+
+function calculateLineLength(coordinates: number[][]): number {
+  if (coordinates.length < 2) return 0;
+  
+  let totalLength = 0;
+  for (let i = 1; i < coordinates.length; i++) {
+    const dx = coordinates[i][0] - coordinates[i-1][0];
+    const dy = coordinates[i][1] - coordinates[i-1][1];
+    totalLength += Math.sqrt(dx * dx + dy * dy);
+  }
+  return totalLength;
 }
 
 function extractCoordinates(entity: any): number[][] {

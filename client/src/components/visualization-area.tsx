@@ -24,7 +24,7 @@ export default function VisualizationArea({
 }: VisualizationAreaProps) {
   const canvasRef = useRef<HTMLCanvasElement>(null);
   const { toast } = useToast();
-  
+
   const [canvasState, setCanvasState] = useState<CanvasState>({
     zoom: 1,
     panX: 0,
@@ -92,10 +92,10 @@ export default function VisualizationArea({
 
     const drawCanvas = () => {
       ctx.clearRect(0, 0, canvas.width, canvas.height);
-      
+
       // Draw grid
       drawGrid(ctx, canvas.width, canvas.height, canvasState);
-      
+
       // Draw analysis results if available
       if (currentAnalysis) {
         drawAnalysisResults(ctx, currentAnalysis, canvasState);
@@ -147,7 +147,7 @@ export default function VisualizationArea({
           const startX = wall.coordinates[0][0] * state.zoom + state.panX;
           const startY = wall.coordinates[0][1] * state.zoom + state.panY;
           ctx.moveTo(startX, startY);
-          
+
           for (let i = 1; i < wall.coordinates.length; i++) {
             const x = wall.coordinates[i][0] * state.zoom + state.panX;
             const y = wall.coordinates[i][1] * state.zoom + state.panY;
@@ -178,16 +178,16 @@ export default function VisualizationArea({
       ctx.strokeStyle = '#5CB615';
       ctx.lineWidth = 2;
       ctx.globalAlpha = 0.8;
-      
+
       ilots.forEach((ilot: any) => {
         const x = ilot.x * state.zoom + state.panX;
         const y = ilot.y * state.zoom + state.panY;
         const width = ilot.width * state.zoom;
         const height = ilot.height * state.zoom;
-        
+
         ctx.fillRect(x, y, width, height);
         ctx.strokeRect(x, y, width, height);
-        
+
         // Draw îlot label
         ctx.fillStyle = '#000000';
         ctx.font = '12px Inter';
@@ -225,11 +225,11 @@ export default function VisualizationArea({
       if (rect) {
         const startX = e.clientX - rect.left;
         const startY = e.clientY - rect.top;
-        
+
         const handleMouseMove = (e: MouseEvent) => {
           const deltaX = e.clientX - rect.left - startX;
           const deltaY = e.clientY - rect.top - startY;
-          
+
           setCanvasState(prev => ({
             ...prev,
             panX: prev.panX + deltaX,
@@ -248,6 +248,46 @@ export default function VisualizationArea({
     }
   };
 
+  // Check if DXF data exists but zones weren't detected
+
+  if (!currentProject?.dxfData) {
+    return (
+      <div className="h-full flex items-center justify-center text-text-secondary">
+        <div className="text-center">
+          <i className="fas fa-upload text-4xl mb-4"></i>
+          <p>Upload a DXF file to see the floor plan visualization</p>
+        </div>
+      </div>
+    );
+  }
+
+  const dxfData = currentProject.dxfData as any;
+  const hasZones = dxfData?.parsed?.zones && (
+    dxfData.parsed.zones.walls?.length > 0 || 
+    dxfData.parsed.zones.entrances?.length > 0 || 
+    dxfData.parsed.zones.restricted?.length > 0
+  );
+
+  if (!hasZones) {
+    return (
+      <div className="h-full flex items-center justify-center text-text-secondary">
+        <div className="text-center">
+          <i className="fas fa-exclamation-triangle text-4xl mb-4 text-status-yellow"></i>
+          <p className="mb-2">DXF file uploaded but no architectural elements detected</p>
+          <p className="text-sm">The file may use non-standard layer names or entity types.</p>
+          <p className="text-sm">Analysis will use a default rectangular boundary.</p>
+          <div className="mt-4 p-4 bg-dark-secondary rounded-lg">
+            <p className="text-xs text-text-secondary">
+              File: {dxfData?.originalName || 'Unknown'}<br/>
+              Size: {dxfData?.size ? `${(dxfData.size / 1024 / 1024).toFixed(2)} MB` : 'Unknown'}<br/>
+              Entities: {dxfData?.parsed?.entityCount || 0}
+            </p>
+          </div>
+        </div>
+      </div>
+    );
+  }
+
   return (
     <div className="visualization-area flex-1 flex flex-col relative">
       {/* Canvas Container */}
@@ -260,7 +300,7 @@ export default function VisualizationArea({
             cursor: canvasState.selectedTool === 'pan' ? 'grab' : 'crosshair',
           }}
         />
-        
+
         {/* No Floor Plan Message */}
         {!currentProject && (
           <div className="absolute inset-0 flex items-center justify-center">
@@ -270,7 +310,7 @@ export default function VisualizationArea({
             </div>
           </div>
         )}
-        
+
         {/* Toolbar - Fixed position at top left */}
         <div className="absolute top-4 left-4 z-10">
           <div className="flex items-center space-x-2 bg-dark-secondary bg-opacity-95 backdrop-blur-sm rounded-lg p-2 border border-dark-tertiary shadow-lg">
@@ -304,7 +344,7 @@ export default function VisualizationArea({
             </button>
           </div>
         </div>
-        
+
         {/* Zoom Controls - Fixed position at top right */}
         <div className="absolute top-4 right-4 z-10">
           <div className="flex items-center space-x-2 bg-dark-secondary bg-opacity-95 backdrop-blur-sm rounded-lg p-2 border border-dark-tertiary shadow-lg">
@@ -357,7 +397,7 @@ export default function VisualizationArea({
             </button>
           </div>
         </div>
-        
+
         {/* Legend - Fixed position at bottom left */}
         <div className="absolute bottom-4 left-4 z-10">
           <div className="bg-dark-secondary bg-opacity-95 backdrop-blur-sm rounded-lg p-3 border border-dark-tertiary shadow-lg w-48">
