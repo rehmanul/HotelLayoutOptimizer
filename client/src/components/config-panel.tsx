@@ -49,6 +49,21 @@ export default function ConfigPanel({
     respectConstraints: true
   });
 
+  const handleFileUpload = useCallback((file: File) => {
+    if (!projectName.trim()) {
+      toast({
+        title: "Project Name Required",
+        description: "Please enter a project name before uploading.",
+        variant: "destructive"
+      });
+      return;
+    }
+    
+    onProjectUpload(file, projectName, projectDescription);
+    setProjectName("");
+    setProjectDescription("");
+  }, [projectName, projectDescription, onProjectUpload, toast]);
+
   const handleDrop = useCallback((e: React.DragEvent) => {
     e.preventDefault();
     e.stopPropagation();
@@ -70,21 +85,6 @@ export default function ConfigPanel({
       });
     }
   }, [handleFileUpload, toast]);
-
-  const handleFileUpload = useCallback((file: File) => {
-    if (!projectName.trim()) {
-      toast({
-        title: "Project Name Required",
-        description: "Please enter a project name before uploading.",
-        variant: "destructive"
-      });
-      return;
-    }
-    
-    onProjectUpload(file, projectName, projectDescription);
-    setProjectName("");
-    setProjectDescription("");
-  }, [projectName, projectDescription, onProjectUpload, toast]);
 
   const handleFileInputChange = (e: React.ChangeEvent<HTMLInputElement>) => {
     const file = e.target.files?.[0];
