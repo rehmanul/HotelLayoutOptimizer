@@ -207,8 +207,8 @@ export default function Analyzer() {
       </div>
 
       {/* Main Workspace */}
-      <div className="flex-1 flex flex-col lg:flex-row">
-        <div className="w-full lg:w-1/3 border-b lg:border-b-0 lg:border-r border-dark-tertiary">
+      <div className="flex-1 flex flex-col lg:flex-row min-h-0">
+        <div className="w-full lg:w-1/3 flex-shrink-0 border-b lg:border-b-0 lg:border-r border-dark-tertiary">
           <ConfigPanel
             currentProject={state.currentProject}
             currentConfiguration={state.currentConfiguration}
@@ -218,7 +218,7 @@ export default function Analyzer() {
           />
         </div>
 
-        <div className="flex-1 min-h-0">
+        <div className="flex-1 min-w-0 min-h-0">
           <VisualizationArea
             currentProject={state.currentProject}
             currentAnalysis={state.currentAnalysis}

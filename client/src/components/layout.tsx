@@ -51,17 +51,17 @@ export default function Layout({ children }: LayoutProps) {
   }, [isMobile, sidebarOpen]);
 
   return (
-    <div className="flex h-screen bg-dark-primary">
+    <div className="flex h-screen bg-dark-primary overflow-hidden">
       {/* Mobile Header */}
       {isMobile && (
-        <div className="fixed top-0 left-0 right-0 z-50 bg-dark-secondary border-b border-dark-tertiary p-4 lg:hidden">
+        <div className="fixed top-0 left-0 right-0 z-50 bg-dark-secondary border-b border-dark-tertiary p-3 lg:hidden">
           <div className="flex items-center justify-between">
-            <div className="flex items-center space-x-3">
-              <div className="w-8 h-8 bg-accent-blue rounded-lg flex items-center justify-center">
-                <i className="fas fa-cube text-white text-sm"></i>
+            <div className="flex items-center space-x-2">
+              <div className="w-6 h-6 bg-accent-blue rounded-lg flex items-center justify-center">
+                <i className="fas fa-cube text-white text-xs"></i>
               </div>
               <div>
-                <h1 className="text-lg font-semibold text-text-primary">Floor Plan Analyzer</h1>
+                <h1 className="text-sm font-semibold text-text-primary">Floor Plan Analyzer</h1>
               </div>
             </div>
             <button
@@ -77,9 +77,11 @@ export default function Layout({ children }: LayoutProps) {
 
       {/* Sidebar */}
       <div className={`
-        ${isMobile ? 'fixed inset-y-0 left-0 z-40 transform transition-transform duration-300' : 'relative'}
+        ${isMobile ? 'fixed inset-y-0 left-0 z-40 transform transition-transform duration-300 ease-in-out' : 'relative'}
         ${isMobile && !sidebarOpen ? '-translate-x-full' : 'translate-x-0'}
-        ${isMobile ? 'w-80' : 'w-60'}
+        ${isMobile ? 'w-72' : 'w-60'}
+        ${!isMobile ? 'flex-shrink-0' : ''}
+        bg-dark-secondary
       `}>
         <Sidebar
           activeTab={activeTab}
@@ -93,15 +95,20 @@ export default function Layout({ children }: LayoutProps) {
 
       {/* Overlay for mobile */}
       {isMobile && sidebarOpen && (
-        <div className="fixed inset-0 bg-black bg-opacity-50 z-30 lg:hidden" />
+        <div 
+          className="fixed inset-0 bg-black bg-opacity-50 z-30" 
+          onClick={() => setSidebarOpen(false)}
+        />
       )}
 
       {/* Main Content */}
       <main className={`
-        flex-1 overflow-y-auto
-        ${isMobile ? 'pt-16' : ''}
+        flex-1 min-w-0 overflow-hidden
+        ${isMobile ? 'pt-12' : ''}
       `}>
-        {children}
+        <div className="h-full overflow-y-auto">
+          {children}
+        </div>
       </main>
     </div>
   );

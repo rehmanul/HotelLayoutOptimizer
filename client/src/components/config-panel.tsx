@@ -162,7 +162,7 @@ export default function ConfigPanel({
   };
 
   return (
-    <div className="w-full h-full bg-dark-secondary p-4 lg:p-6 overflow-y-auto scrollbar-hide">
+    <div className="w-full h-full bg-dark-secondary p-4 lg:p-6 overflow-y-auto scrollbar-hide min-h-0">
       {/* File Upload Section */}
       <div className="mb-8">
         <h3 className="text-lg font-semibold text-text-primary mb-4">Floor Plan Upload</h3>
