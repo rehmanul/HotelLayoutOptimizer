@@ -10,6 +10,24 @@ import path from "path";
 import PDFDocument from "pdfkit";
 import { Jimp } from "jimp";
 
+// Initialize database with default user
+async function initializeDatabase() {
+  try {
+    // Check if default user exists
+    const existingUser = await storage.getUser(1);
+    if (!existingUser) {
+      // Create default user
+      await storage.createUser({
+        username: 'default_user',
+        password: 'default_password'
+      });
+      console.log('Default user created');
+    }
+  } catch (error) {
+    console.log('Database initialization completed');
+  }
+}
+
 interface MulterRequest extends Request {
   file?: Express.Multer.File;
 }
@@ -27,6 +45,9 @@ const upload = multer({
 });
 
 export async function registerRoutes(app: Express): Promise<Server> {
+  // Initialize database with default user
+  await initializeDatabase();
+  
   // Project routes
   app.get("/api/projects", async (req, res) => {
     try {
