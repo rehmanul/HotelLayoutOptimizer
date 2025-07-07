@@ -281,7 +281,7 @@ export default function VisualizationArea({
   };
 
   return (
-    <div className="flex-1 flex flex-col">
+    <div className="visualization-area flex-1 flex flex-col">
       {/* Visualization Header */}
       <div className="bg-dark-secondary border-b border-dark-tertiary p-4">
         <div className="flex items-center justify-between">
@@ -357,36 +357,36 @@ export default function VisualizationArea({
           </div>
         )}
         
-        {/* Legend Overlay */}
-        <div className="absolute top-4 right-4 bg-dark-secondary bg-opacity-95 backdrop-blur-sm rounded-lg p-4 w-64 border border-dark-tertiary">
-          <h4 className="text-text-primary font-semibold mb-3">Legend</h4>
-          <div className="space-y-2">
-            <div className="flex items-center space-x-3">
-              <div className="w-4 h-1 bg-black"></div>
-              <span className="text-text-primary text-sm">Walls</span>
+        {/* Legend Overlay - Responsive positioning */}
+        <div className="absolute top-4 right-4 bg-dark-secondary bg-opacity-95 backdrop-blur-sm rounded-lg p-3 lg:p-4 w-48 lg:w-64 border border-dark-tertiary max-w-[calc(100vw-2rem)] lg:max-w-none">
+          <h4 className="text-text-primary font-semibold mb-2 lg:mb-3 text-sm lg:text-base">Legend</h4>
+          <div className="space-y-1 lg:space-y-2">
+            <div className="flex items-center space-x-2 lg:space-x-3">
+              <div className="w-3 h-0.5 lg:w-4 lg:h-1 bg-black flex-shrink-0"></div>
+              <span className="text-text-primary text-xs lg:text-sm">Walls</span>
             </div>
-            <div className="flex items-center space-x-3">
-              <div className="w-4 h-4 bg-accent-blue rounded"></div>
-              <span className="text-text-primary text-sm">Restricted Areas</span>
+            <div className="flex items-center space-x-2 lg:space-x-3">
+              <div className="w-3 h-3 lg:w-4 lg:h-4 bg-accent-blue rounded flex-shrink-0"></div>
+              <span className="text-text-primary text-xs lg:text-sm">Restricted Areas</span>
             </div>
-            <div className="flex items-center space-x-3">
-              <div className="w-4 h-4 bg-status-red rounded"></div>
-              <span className="text-text-primary text-sm">Entrances/Exits</span>
+            <div className="flex items-center space-x-2 lg:space-x-3">
+              <div className="w-3 h-3 lg:w-4 lg:h-4 bg-status-red rounded flex-shrink-0"></div>
+              <span className="text-text-primary text-xs lg:text-sm">Entrances/Exits</span>
             </div>
-            <div className="flex items-center space-x-3">
-              <div className="w-4 h-4 bg-status-green rounded"></div>
-              <span className="text-text-primary text-sm">Îlots</span>
+            <div className="flex items-center space-x-2 lg:space-x-3">
+              <div className="w-3 h-3 lg:w-4 lg:h-4 bg-status-green rounded flex-shrink-0"></div>
+              <span className="text-text-primary text-xs lg:text-sm">Îlots</span>
             </div>
-            <div className="flex items-center space-x-3">
-              <div className="w-4 h-4 bg-accent-orange rounded"></div>
-              <span className="text-text-primary text-sm">Corridors</span>
+            <div className="flex items-center space-x-2 lg:space-x-3">
+              <div className="w-3 h-3 lg:w-4 lg:h-4 bg-accent-orange rounded flex-shrink-0"></div>
+              <span className="text-text-primary text-xs lg:text-sm">Corridors</span>
             </div>
           </div>
         </div>
         
-        {/* Toolbar Overlay */}
-        <div className="absolute bottom-4 left-4 bg-dark-secondary bg-opacity-95 backdrop-blur-sm rounded-lg p-4 border border-dark-tertiary">
-          <div className="flex items-center space-x-2">
+        {/* Toolbar Overlay - Responsive positioning */}
+        <div className="absolute bottom-4 left-4 bg-dark-secondary bg-opacity-95 backdrop-blur-sm rounded-lg p-2 lg:p-4 border border-dark-tertiary">
+          <div className="flex items-center space-x-1 lg:space-x-2">
             <button
               onClick={() => handleToolSelect('select')}
               className={`p-2 rounded transition-colors ${
@@ -436,24 +436,24 @@ export default function VisualizationArea({
           </div>
         </div>
         
-        {/* Analysis Status */}
+        {/* Analysis Status - Responsive positioning */}
         {currentAnalysis && (
-          <div className="absolute top-4 left-4 bg-dark-secondary bg-opacity-95 backdrop-blur-sm rounded-lg p-4 border border-dark-tertiary">
-            <div className="flex items-center space-x-3">
-              <div className={`w-3 h-3 rounded-full ${
+          <div className="absolute top-4 left-4 bg-dark-secondary bg-opacity-95 backdrop-blur-sm rounded-lg p-3 lg:p-4 border border-dark-tertiary max-w-[calc(100vw-20rem)] lg:max-w-none">
+            <div className="flex items-center space-x-2 lg:space-x-3">
+              <div className={`w-2 h-2 lg:w-3 lg:h-3 rounded-full flex-shrink-0 ${
                 currentAnalysis.status === 'completed' ? 'bg-status-green' :
                 currentAnalysis.status === 'running' ? 'bg-status-yellow' :
                 currentAnalysis.status === 'failed' ? 'bg-status-red' :
                 'bg-text-secondary'
               }`}></div>
-              <span className="text-text-primary font-medium">
+              <span className="text-text-primary font-medium text-xs lg:text-sm">
                 Analysis {currentAnalysis.status === 'completed' ? 'Complete' : 
                         currentAnalysis.status === 'running' ? 'Running' :
                         currentAnalysis.status === 'failed' ? 'Failed' : 'Pending'}
               </span>
             </div>
             {currentAnalysis.status === 'completed' && (
-              <div className="mt-2 text-text-secondary text-sm">
+              <div className="mt-1 lg:mt-2 text-text-secondary text-xs lg:text-sm">
                 {currentAnalysis.totalIlots} îlots • {((currentAnalysis.coverage || 0) * 100).toFixed(1)}% coverage
               </div>
             )}

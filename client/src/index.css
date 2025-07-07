@@ -303,3 +303,38 @@ html, body {
   height: 100%;
   overflow: hidden;
 }
+
+/* Additional responsive fixes for overlapping UI elements */
+@media (max-width: 768px) {
+  /* Adjust legend positioning on mobile to prevent overlap */
+  .visualization-area .absolute.top-4.right-4 {
+    top: 0.5rem;
+    right: 0.5rem;
+    width: 10rem !important;
+    max-width: calc(100vw - 1rem) !important;
+  }
+  
+  /* Adjust analysis status positioning */
+  .visualization-area .absolute.top-4.left-4 {
+    top: 0.5rem;
+    left: 0.5rem;
+    max-width: calc(100vw - 12rem) !important;
+  }
+  
+  /* Stack overlays vertically if needed */
+  .visualization-area .absolute.bottom-4.left-4 {
+    bottom: 0.5rem;
+    left: 0.5rem;
+  }
+}
+
+@media (max-width: 640px) {
+  /* Further reduce sizes on very small screens */
+  .visualization-area .absolute.top-4.right-4 {
+    width: 8rem !important;
+  }
+  
+  .visualization-area .absolute.top-4.left-4 {
+    max-width: calc(100vw - 9rem) !important;
+  }
+}
