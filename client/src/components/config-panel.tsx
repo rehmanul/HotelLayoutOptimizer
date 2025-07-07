@@ -51,21 +51,25 @@ export default function ConfigPanel({
 
   const handleDrop = useCallback((e: React.DragEvent) => {
     e.preventDefault();
+    e.stopPropagation();
     setDragOver(false);
     
     const files = Array.from(e.dataTransfer.files);
-    const dxfFile = files.find(file => file.name.endsWith('.dxf'));
+    const dxfFile = files.find(file => file.name.toLowerCase().endsWith('.dxf') || file.name.toLowerCase().endsWith('.dwg'));
     
     if (dxfFile) {
+      console.log('Dropped file:', dxfFile);
+      console.log('File size:', dxfFile.size);
+      console.log('File type:', dxfFile.type);
       handleFileUpload(dxfFile);
     } else {
       toast({
         title: "Invalid File",
-        description: "Please upload a DXF file.",
+        description: "Please upload a DXF or DWG file.",
         variant: "destructive"
       });
     }
-  }, [toast]);
+  }, [handleFileUpload, toast]);
 
   const handleFileUpload = useCallback((file: File) => {
     if (!projectName.trim()) {
@@ -179,10 +183,28 @@ export default function ConfigPanel({
           }`}
           onDragOver={(e) => {
             e.preventDefault();
+            e.stopPropagation();
             if (projectName.trim()) setDragOver(true);
           }}
-          onDragLeave={() => setDragOver(false)}
-          onDrop={projectName.trim() ? handleDrop : undefined}
+          onDragEnter={(e) => {
+            e.preventDefault();
+            e.stopPropagation();
+            if (projectName.trim()) setDragOver(true);
+          }}
+          onDragLeave={(e) => {
+            e.preventDefault();
+            e.stopPropagation();
+            setDragOver(false);
+          }}
+          onDrop={projectName.trim() ? handleDrop : (e) => {
+            e.preventDefault();
+            e.stopPropagation();
+            toast({
+              title: "Project Name Required",
+              description: "Please enter a project name before uploading.",
+              variant: "destructive"
+            });
+          }}
           onClick={() => {
             if (projectName.trim()) {
               fileInputRef.current?.click();
