@@ -23,79 +23,21 @@ export interface DxfData {
 }
 
 export class DxfUtils {
-  static async parseDxfFile(file: File): Promise<DxfData> {
-    // In a real implementation, this would use a proper DXF parsing library
-    // For now, we'll return mock data structure
+  // DXF parsing is now handled by the backend server
+  static async parseDxfFile(file: File): Promise<any> {
+    const formData = new FormData();
+    formData.append('dxfFile', file);
     
-    return new Promise((resolve) => {
-      setTimeout(() => {
-        resolve({
-          layers: [
-            {
-              name: 'WALLS',
-              color: 0,
-              entities: [
-                {
-                  type: 'LINE',
-                  layer: 'WALLS',
-                  color: 0,
-                  coordinates: [[0, 0], [100, 0]]
-                },
-                {
-                  type: 'LINE',
-                  layer: 'WALLS',
-                  color: 0,
-                  coordinates: [[100, 0], [100, 100]]
-                },
-                {
-                  type: 'LINE',
-                  layer: 'WALLS',
-                  color: 0,
-                  coordinates: [[100, 100], [0, 100]]
-                },
-                {
-                  type: 'LINE',
-                  layer: 'WALLS',
-                  color: 0,
-                  coordinates: [[0, 100], [0, 0]]
-                }
-              ]
-            },
-            {
-              name: 'RESTRICTED',
-              color: 4,
-              entities: [
-                {
-                  type: 'POLYLINE',
-                  layer: 'RESTRICTED',
-                  color: 4,
-                  coordinates: [[10, 10], [20, 10], [20, 20], [10, 20], [10, 10]]
-                }
-              ]
-            },
-            {
-              name: 'ENTRANCES',
-              color: 1,
-              entities: [
-                {
-                  type: 'LINE',
-                  layer: 'ENTRANCES',
-                  color: 1,
-                  coordinates: [[45, 0], [55, 0]]
-                }
-              ]
-            }
-          ],
-          bounds: {
-            minX: 0,
-            minY: 0,
-            maxX: 100,
-            maxY: 100
-          },
-          entities: []
-        });
-      }, 1000);
+    const response = await fetch('/api/dxf/parse', {
+      method: 'POST',
+      body: formData
     });
+    
+    if (!response.ok) {
+      throw new Error('Failed to parse DXF file');
+    }
+    
+    return response.json();
   }
 
   static detectZones(dxfData: DxfData): {
@@ -164,5 +106,79 @@ export class DxfUtils {
     };
 
     return colorMap[entity.color] || '#000000';
+  }
+
+  static calculateIlotDensity(ilots: any[], totalArea: number): number {
+    const usedArea = ilots.reduce((sum, ilot) => sum + ilot.area, 0);
+    return usedArea / totalArea;
+  }
+
+  static validateIlotPlacement(ilot: any, zones: any, constraints: any): boolean {
+    // Check if îlot overlaps with walls or restricted areas
+    const ilotBounds = {
+      minX: ilot.x,
+      minY: ilot.y,
+      maxX: ilot.x + ilot.width,
+      maxY: ilot.y + ilot.height
+    };
+
+    // Check against walls
+    if (zones.walls) {
+      for (const wall of zones.walls) {
+        if (this.rectangleIntersectsPolyline(ilotBounds, wall.coordinates)) {
+          return false;
+        }
+      }
+    }
+
+    // Check against restricted areas
+    if (zones.restricted) {
+      for (const restricted of zones.restricted) {
+        if (this.rectangleIntersectsPolyline(ilotBounds, restricted.coordinates)) {
+          return false;
+        }
+      }
+    }
+
+    return true;
+  }
+
+  private static rectangleIntersectsPolyline(rect: any, polyline: number[][]): boolean {
+    if (!polyline || polyline.length < 2) return false;
+
+    for (let i = 0; i < polyline.length - 1; i++) {
+      const [x1, y1] = polyline[i];
+      const [x2, y2] = polyline[i + 1];
+      
+      // Check if line segment intersects with rectangle
+      if (this.lineIntersectsRect(x1, y1, x2, y2, rect)) {
+        return true;
+      }
+    }
+    
+    return false;
+  }
+
+  private static lineIntersectsRect(x1: number, y1: number, x2: number, y2: number, rect: any): boolean {
+    const { minX, minY, maxX, maxY } = rect;
+    
+    // Check intersection with each edge of the rectangle
+    return (
+      this.lineIntersection(x1, y1, x2, y2, minX, minY, maxX, minY) || // Top edge
+      this.lineIntersection(x1, y1, x2, y2, maxX, minY, maxX, maxY) || // Right edge
+      this.lineIntersection(x1, y1, x2, y2, maxX, maxY, minX, maxY) || // Bottom edge
+      this.lineIntersection(x1, y1, x2, y2, minX, maxY, minX, minY)    // Left edge
+    );
+  }
+
+  private static lineIntersection(x1: number, y1: number, x2: number, y2: number, 
+                                  x3: number, y3: number, x4: number, y4: number): boolean {
+    const denom = (x1 - x2) * (y3 - y4) - (y1 - y2) * (x3 - x4);
+    if (Math.abs(denom) < 1e-10) return false;
+    
+    const t = ((x1 - x3) * (y3 - y4) - (y1 - y3) * (x3 - x4)) / denom;
+    const u = -((x1 - x2) * (y1 - y3) - (y1 - y2) * (x1 - x3)) / denom;
+    
+    return t >= 0 && t <= 1 && u >= 0 && u <= 1;
   }
 }

@@ -34,26 +34,42 @@ export default function VisualizationArea({
 
   const exportPdfMutation = useMutation({
     mutationFn: async (analysisId: number) => {
-      const response = await apiRequest('GET', `/api/analyses/${analysisId}/export/pdf`);
-      return response.json();
+      const response = await fetch(`/api/analysis/${analysisId}/export/pdf`);
+      const blob = await response.blob();
+      const url = window.URL.createObjectURL(blob);
+      const a = document.createElement('a');
+      a.href = url;
+      a.download = `analysis_${analysisId}.pdf`;
+      document.body.appendChild(a);
+      a.click();
+      window.URL.revokeObjectURL(url);
+      document.body.removeChild(a);
     },
     onSuccess: () => {
       toast({
         title: "PDF Export",
-        description: "PDF export functionality will be available soon."
+        description: "PDF exported successfully!"
       });
     }
   });
 
   const exportImageMutation = useMutation({
     mutationFn: async (analysisId: number) => {
-      const response = await apiRequest('GET', `/api/analyses/${analysisId}/export/image`);
-      return response.json();
+      const response = await fetch(`/api/analysis/${analysisId}/export/png`);
+      const blob = await response.blob();
+      const url = window.URL.createObjectURL(blob);
+      const a = document.createElement('a');
+      a.href = url;
+      a.download = `analysis_${analysisId}.png`;
+      document.body.appendChild(a);
+      a.click();
+      window.URL.revokeObjectURL(url);
+      document.body.removeChild(a);
     },
     onSuccess: () => {
       toast({
         title: "Image Export",
-        description: "Image export functionality will be available soon."
+        description: "Image exported successfully!"
       });
     }
   });

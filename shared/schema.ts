@@ -91,6 +91,7 @@ export const insertProjectSchema = createInsertSchema(projects).pick({
   description: true,
   dxfData: true,
   floorPlanImage: true,
+  userId: true,
 });
 
 export const insertConfigurationSchema = createInsertSchema(configurations).pick({
@@ -114,6 +115,7 @@ export const insertAnalysisSchema = createInsertSchema(analyses).pick({
   corridorsGenerated: true,
   totalIlots: true,
   coverage: true,
+  completedAt: true,
 });
 
 export type InsertUser = z.infer<typeof insertUserSchema>;
