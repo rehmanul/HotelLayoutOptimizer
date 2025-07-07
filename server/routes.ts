@@ -165,6 +165,55 @@ export async function registerRoutes(app: Express): Promise<Server> {
       const validatedData = insertProjectSchema.parse(projectData);
       const project = await storage.createProject(validatedData);
 
+      // Auto-create default configuration and start analysis if DXF data exists
+      if (project.dxfData) {
+        try {
+          const defaultConfig = {
+            projectId: project.id,
+            name: "Default Configuration",
+            ilotDistribution: JSON.stringify({
+              size0to1: 10,
+              size1to3: 25,
+              size3to5: 30,
+              size5to10: 35
+            }),
+            corridorWidth: 1.5,
+            minClearance: 0.5,
+            autoGenerateCorridors: true,
+            spaceOptimization: true,
+            avoidOverlaps: true,
+            respectConstraints: true
+          };
+
+          const configuration = await storage.createConfiguration(defaultConfig);
+          console.log("Auto-created configuration:", configuration.id);
+
+          // Start analysis immediately
+          const analysisData = {
+            projectId: project.id,
+            configurationId: configuration.id,
+            status: 'processing' as const,
+            zonesDetected: null,
+            ilotsPlaced: null,
+            corridorsGenerated: null,
+            totalIlots: 0,
+            coverage: 0,
+            completedAt: null
+          };
+
+          const analysis = await storage.createAnalysis(analysisData);
+          console.log("Auto-started analysis:", analysis.id);
+
+          // Process analysis in background
+          processAnalysis(analysis.id).catch(error => {
+            console.error("Background analysis failed:", error);
+          });
+
+        } catch (configError) {
+          console.error("Failed to auto-create config/analysis:", configError);
+        }
+      }
+
       res.json(project);
     } catch (error) {
       console.error("Project creation error:", error);

@@ -3,7 +3,7 @@ import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
 import { useToast } from "@/hooks/use-toast";
 import { apiRequest } from "@/lib/queryClient";
 
-import ConfigPanel from "@/components/config-panel";
+import SimpleUpload from "@/components/simple-upload";
 import VisualizationArea from "@/components/visualization-area";
 import type { Project, Configuration, Analysis } from "@shared/schema";
 
@@ -209,13 +209,25 @@ export default function Analyzer() {
       {/* Main Workspace */}
       <div className="flex-1 flex flex-col lg:flex-row min-h-0">
         <div className="w-full lg:w-1/3 flex-shrink-0 border-b lg:border-b-0 lg:border-r border-dark-tertiary">
-          <ConfigPanel
-            currentProject={state.currentProject}
-            currentConfiguration={state.currentConfiguration}
-            onProjectUpload={handleProjectUpload}
-            onConfigurationChange={handleConfigurationSave}
-            isUploading={createProjectMutation.isPending}
-          />
+          <div className="w-full h-full bg-dark-secondary p-4 lg:p-6 overflow-y-auto scrollbar-hide min-h-0">
+            <SimpleUpload
+              onFileUpload={handleProjectUpload}
+              isUploading={createProjectMutation.isPending}
+            />
+            
+            {/* Current Project Info */}
+            {state.currentProject && (
+              <div className="mt-6 p-4 bg-dark-tertiary rounded-lg">
+                <h4 className="text-text-primary font-medium mb-2">Current Project</h4>
+                <p className="text-text-secondary text-sm">{state.currentProject.name}</p>
+                {analyses && analyses.length > 0 && (
+                  <div className="mt-2">
+                    <span className="text-accent-green text-xs">✓ Analysis complete</span>
+                  </div>
+                )}
+              </div>
+            )}
+          </div>
         </div>
 
         <div className="flex-1 min-w-0 min-h-0">

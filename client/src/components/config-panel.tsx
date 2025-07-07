@@ -27,8 +27,6 @@ export default function ConfigPanel({
   const { toast } = useToast();
   const fileInputRef = useRef<HTMLInputElement>(null);
   const [dragOver, setDragOver] = useState(false);
-  const [projectName, setProjectName] = useState("");
-  const [projectDescription, setProjectDescription] = useState("");
   
   const [ilotDistribution, setIlotDistribution] = useState<IlotDistribution>({
     size0to1: 10,
@@ -50,19 +48,12 @@ export default function ConfigPanel({
   });
 
   const handleFileUpload = useCallback((file: File) => {
-    if (!projectName.trim()) {
-      toast({
-        title: "Project Name Required",
-        description: "Please enter a project name before uploading.",
-        variant: "destructive"
-      });
-      return;
-    }
+    // Auto-generate project name from filename
+    const fileName = file.name.replace(/\.[^/.]+$/, ""); // Remove extension
+    const autoName = fileName || `Floor Plan ${new Date().toLocaleString()}`;
     
-    onProjectUpload(file, projectName, projectDescription);
-    setProjectName("");
-    setProjectDescription("");
-  }, [projectName, projectDescription, onProjectUpload, toast]);
+    onProjectUpload(file, autoName, "Auto-uploaded floor plan");
+  }, [onProjectUpload]);
 
   const handleDrop = useCallback((e: React.DragEvent) => {
     e.preventDefault();
@@ -167,37 +158,7 @@ export default function ConfigPanel({
       <div className="mb-8">
         <h3 className="text-lg font-semibold text-text-primary mb-4">Floor Plan Upload</h3>
         
-        {/* Project Name Input */}
-        <div className="mb-4">
-          <label className="text-text-primary text-sm font-medium mb-2 block">
-            Project Name <span className="text-accent-orange">*</span>
-          </label>
-          <input
-            type="text"
-            value={projectName}
-            onChange={(e) => setProjectName(e.target.value)}
-            placeholder="Enter project name (required)"
-            className={`w-full bg-dark-tertiary text-text-primary rounded-lg px-3 py-2 border focus:outline-none transition-colors ${
-              projectName.trim() ? 'border-dark-tertiary focus:border-accent-blue' : 'border-accent-orange focus:border-accent-orange'
-            }`}
-            required
-          />
-          {!projectName.trim() && (
-            <p className="text-accent-orange text-xs mt-1">Project name is required</p>
-          )}
-        </div>
-        
-        {/* Project Description Input */}
-        <div className="mb-4">
-          <label className="text-text-primary text-sm font-medium mb-2 block">Description (Optional)</label>
-          <textarea
-            value={projectDescription}
-            onChange={(e) => setProjectDescription(e.target.value)}
-            placeholder="Enter project description"
-            rows={3}
-            className="w-full bg-dark-tertiary text-text-primary rounded-lg px-3 py-2 border border-dark-tertiary focus:border-accent-blue focus:outline-none resize-none"
-          />
-        </div>
+
         
         <div 
           className={`upload-zone rounded-lg p-8 text-center transition-all duration-300 ${
