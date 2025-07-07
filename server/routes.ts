@@ -328,6 +328,29 @@ export async function registerRoutes(app: Express): Promise<Server> {
     }
   });
 
+  // Get all analyses
+  app.get("/api/analyses", async (req, res) => {
+    try {
+      // For now, use a default user ID - in production, this would come from authentication
+      const userId = 1;
+      const projects = await storage.getProjectsByUser(userId);
+      let allAnalyses: Analysis[] = [];
+      
+      for (const project of projects) {
+        const analyses = await storage.getAnalysesByProject(project.id);
+        allAnalyses.push(...analyses);
+      }
+      
+      // Sort by creation date, newest first
+      allAnalyses.sort((a, b) => new Date(b.createdAt || 0).getTime() - new Date(a.createdAt || 0).getTime());
+      
+      res.json(allAnalyses);
+    } catch (error) {
+      console.error("Error fetching analyses:", error);
+      res.status(500).json({ message: "Failed to fetch analyses", error: error instanceof Error ? error.message : String(error) });
+    }
+  });
+
   app.get("/api/analyses/:id", async (req, res) => {
     try {
       const id = parseInt(req.params.id);

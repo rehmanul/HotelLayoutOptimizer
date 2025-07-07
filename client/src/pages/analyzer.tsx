@@ -28,15 +28,33 @@ export default function Analyzer() {
     enabled: true
   });
 
-  const { data: configurations } = useQuery({
-    queryKey: ['/api/projects', state.currentProject?.id, 'configurations'],
-    enabled: !!state.currentProject?.id
+  const { data: analyses } = useQuery({
+    queryKey: ['/api/analyses'],
+    enabled: true,
+    refetchInterval: 3000 // Refresh every 3 seconds to show updated results
   });
 
-  const { data: analyses } = useQuery({
-    queryKey: ['/api/projects', state.currentProject?.id, 'analyses'],
-    enabled: !!state.currentProject?.id
-  });
+  // Auto-select the latest project when projects load
+  useEffect(() => {
+    if (projects && projects.length > 0 && !state.currentProject) {
+      const latestProject = projects[0]; // Projects are ordered by creation date
+      setState(prev => ({ ...prev, currentProject: latestProject }));
+    }
+  }, [projects, state.currentProject]);
+
+  // Auto-select the latest analysis when analyses load
+  useEffect(() => {
+    if (analyses && analyses.length > 0 && state.currentProject) {
+      const projectAnalyses = analyses.filter(a => a.projectId === state.currentProject?.id);
+      if (projectAnalyses.length > 0) {
+        const latestAnalysis = projectAnalyses[0]; // Get the latest analysis
+        // Only update if it's different from current analysis
+        if (!state.currentAnalysis || state.currentAnalysis.id !== latestAnalysis.id) {
+          setState(prev => ({ ...prev, currentAnalysis: latestAnalysis }));
+        }
+      }
+    }
+  }, [analyses, state.currentProject, state.currentAnalysis]);
 
   const createProjectMutation = useMutation({
     mutationFn: async (formData: FormData) => {
@@ -45,10 +63,11 @@ export default function Analyzer() {
     },
     onSuccess: (project) => {
       queryClient.invalidateQueries({ queryKey: ['/api/projects'] });
+      queryClient.invalidateQueries({ queryKey: ['/api/analyses'] });
       setState(prev => ({ ...prev, currentProject: project }));
       toast({
         title: "Project Created",
-        description: "Your floor plan project has been created successfully."
+        description: "Analysis running automatically. Results will appear shortly."
       });
     },
     onError: (error: any) => {
@@ -79,11 +98,11 @@ export default function Analyzer() {
       return response.json();
     },
     onSuccess: (analysis) => {
-      queryClient.invalidateQueries({ queryKey: ['/api/projects', state.currentProject?.id, 'analyses'] });
+      queryClient.invalidateQueries({ queryKey: ['/api/analyses'] });
       setState(prev => ({ ...prev, currentAnalysis: analysis }));
       toast({
-        title: "Analysis Started",
-        description: "Floor plan analysis has begun. Results will appear shortly."
+        title: "Analysis Restarted",
+        description: "New analysis running. Updated results will appear shortly."
       });
     },
     onError: () => {
