@@ -91,36 +91,61 @@ export async function registerRoutes(app: Express): Promise<Server> {
         
         if (fileExtension === '.dxf' || fileExtension === '.dwg') {
           try {
+            console.log(`Processing ${fileExtension.toUpperCase()} file: ${req.file.originalname}`);
+            
             // Parse DXF/DWG file
             const dxfContent = fs.readFileSync(req.file.path, 'utf8');
-            console.log(`DXF file size: ${dxfContent.length} characters`);
+            console.log(`File size: ${dxfContent.length} characters`);
+            
+            if (dxfContent.length === 0) {
+              throw new Error('File is empty');
+            }
             
             const parser = new DxfParser();
             const parsed = parser.parseSync(dxfContent);
             
-            console.log(`DXF parsed - Entities: ${parsed.entities?.length || 0}, Layers: ${Object.keys(parsed.layers || {}).length}`);
+            if (!parsed) {
+              throw new Error('Failed to parse DXF/DWG file');
+            }
             
+            console.log(`Parsing successful - Entities: ${parsed.entities?.length || 0}, Layers: ${Object.keys(parsed.layers || {}).length}`);
+            
+            // Process the parsed data
             parsedData = await processDxfData(parsed);
             
-            console.log(`Zones detected - Walls: ${parsedData.zones.walls.length}, Entrances: ${parsedData.zones.entrances.length}, Restricted: ${parsedData.zones.restricted.length}`);
+            if (!parsedData || !parsedData.zones) {
+              throw new Error('Failed to process DXF data');
+            }
+            
+            console.log(`Zone detection complete:`);
+            console.log(`- Walls: ${parsedData.zones.walls.length}`);
+            console.log(`- Entrances: ${parsedData.zones.entrances.length}`);
+            console.log(`- Restricted: ${parsedData.zones.restricted.length}`);
+            console.log(`- Bounds: ${JSON.stringify(parsedData.bounds)}`);
             
             dxfData = {
               originalName: req.file.originalname,
               filename: req.file.filename,
-              path: req.file.path,
               size: req.file.size,
-              parsed: parsedData
+              parsed: parsedData,
+              processedAt: new Date().toISOString()
             };
 
             // Clean up uploaded file
             fs.unlinkSync(req.file.path);
+            
           } catch (dxfError) {
-            console.error("DXF/DWG parsing error:", dxfError);
-            // Clean up uploaded file even if parsing fails
+            console.error("DXF/DWG processing error:", dxfError);
+            
+            // Clean up uploaded file
             if (fs.existsSync(req.file.path)) {
               fs.unlinkSync(req.file.path);
             }
-            console.log("Continuing project creation without DXF/DWG parsing");
+            
+            // Return error instead of continuing without data
+            return res.status(400).json({ 
+              message: `Failed to process ${fileExtension.toUpperCase()} file: ${dxfError instanceof Error ? dxfError.message : 'Unknown error'}` 
+            });
           }
         } else if (['.png', '.jpg', '.jpeg'].includes(fileExtension)) {
           try {
@@ -604,7 +629,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
   return httpServer;
 }
 
-// Real DXF processing function
+// Enhanced DXF processing function with better zone detection
 async function processDxfData(dxf: any) {
   const zones = {
     walls: [] as any[],
@@ -621,122 +646,176 @@ async function processDxfData(dxf: any) {
 
   console.log(`Processing DXF with ${dxf.entities?.length || 0} entities`);
   
-  // Process entities from all layers
+  // Process all entities and extract geometric data
+  const allEntities: any[] = [];
+  
   if (dxf.entities && Array.isArray(dxf.entities)) {
     dxf.entities.forEach((entity: any, index: number) => {
       try {
         if (index % 1000 === 0) {
           console.log(`Processing entity ${index}/${dxf.entities.length}`);
         }
-        // Update bounds
-        if (entity.vertices && Array.isArray(entity.vertices)) {
-          entity.vertices.forEach((vertex: any) => {
-            if (vertex && typeof vertex.x === 'number' && typeof vertex.y === 'number') {
-              bounds.minX = Math.min(bounds.minX, vertex.x);
-              bounds.minY = Math.min(bounds.minY, vertex.y);
-              bounds.maxX = Math.max(bounds.maxX, vertex.x);
-              bounds.maxY = Math.max(bounds.maxY, vertex.y);
-            }
-          });
-        }
 
-        // Update bounds for LINE entities
-        if (entity.type === 'LINE' && entity.startPoint && entity.endPoint) {
-          if (typeof entity.startPoint.x === 'number' && typeof entity.startPoint.y === 'number') {
-            bounds.minX = Math.min(bounds.minX, entity.startPoint.x);
-            bounds.minY = Math.min(bounds.minY, entity.startPoint.y);
-            bounds.maxX = Math.max(bounds.maxX, entity.startPoint.x);
-            bounds.maxY = Math.max(bounds.maxY, entity.startPoint.y);
-          }
-          if (typeof entity.endPoint.x === 'number' && typeof entity.endPoint.y === 'number') {
-            bounds.minX = Math.min(bounds.minX, entity.endPoint.x);
-            bounds.minY = Math.min(bounds.minY, entity.endPoint.y);
-            bounds.maxX = Math.max(bounds.maxX, entity.endPoint.x);
-            bounds.maxY = Math.max(bounds.maxY, entity.endPoint.y);
-          }
-        }
+        const coordinates = extractCoordinates(entity);
+        if (coordinates.length === 0) return;
 
-        // Classify entities based on layer names and properties
-        const layerName = entity.layer?.toLowerCase() || '';
-        const color = entity.color || 0;
+        // Update bounds for all entities
+        coordinates.forEach(coord => {
+          bounds.minX = Math.min(bounds.minX, coord[0]);
+          bounds.minY = Math.min(bounds.minY, coord[1]);
+          bounds.maxX = Math.max(bounds.maxX, coord[0]);
+          bounds.maxY = Math.max(bounds.maxY, coord[1]);
+        });
 
-        if (entity.type === 'LINE' || entity.type === 'POLYLINE' || entity.type === 'LWPOLYLINE') {
-          const coordinates = extractCoordinates(entity);
-          
-          // Only add entities with valid coordinates
-          if (coordinates.length > 0) {
-            // More comprehensive wall detection
-            if (layerName.includes('wall') || layerName.includes('mur') || layerName.includes('walls') ||
-                layerName.includes('0') || layerName === '' || layerName.includes('contour') ||
-                layerName.includes('outline') || layerName.includes('perimeter') ||
-                color === 0 || color === 7 || color === 8) {
-              zones.walls.push({
-                id: zones.walls.length + 1,
-                type: 'wall',
-                coordinates,
-                color: '#000000',
-                layer: entity.layer
-              });
-            } 
-            // Door detection
-            else if (layerName.includes('door') || layerName.includes('porte') || 
-                     layerName.includes('entrance') || layerName.includes('entry') ||
-                     layerName.includes('opening') || layerName.includes('fenetre') ||
-                     layerName.includes('window') || color === 1 || color === 2) {
-              zones.entrances.push({
-                id: zones.entrances.length + 1,
-                type: 'entrance',
-                coordinates,
-                color: '#D0021B',
-                layer: entity.layer
-              });
-            }
-            // Restricted areas (stairs, elevators, etc.)
-            else if (layerName.includes('restricted') || layerName.includes('stair') || 
-                     layerName.includes('escalier') || layerName.includes('elevator') ||
-                     layerName.includes('ascenseur') || layerName.includes('toilet') ||
-                     layerName.includes('wc') || layerName.includes('bath') ||
-                     color === 4 || color === 5) {
-              zones.restricted.push({
-                id: zones.restricted.length + 1,
-                type: 'restricted',
-                coordinates,
-                color: '#4A90E2',
-                layer: entity.layer
-              });
-            }
-            // If no specific classification, treat long lines as potential walls
-            else if (coordinates.length >= 2) {
-              const length = calculateLineLength(coordinates);
-              if (length > 100) { // Lines longer than 100 units likely to be walls
-                zones.walls.push({
-                  id: zones.walls.length + 1,
-                  type: 'wall',
-                  coordinates,
-                  color: '#808080',
-                  layer: entity.layer || 'unclassified'
-                });
-              }
-            }
-          }
-        }
+        allEntities.push({
+          type: entity.type,
+          layer: entity.layer || '0',
+          color: entity.color || 0,
+          coordinates,
+          length: calculateLineLength(coordinates),
+          entity: entity
+        });
+
       } catch (error) {
         console.warn('Error processing entity:', error);
-        // Continue processing other entities
       }
     });
   }
 
   // Fix infinite bounds
   if (bounds.minX === Infinity) {
-    bounds = { minX: 0, minY: 0, maxX: 100, maxY: 100 };
+    bounds = { minX: 0, minY: 0, maxX: 1000, maxY: 1000 };
+  }
+
+  console.log(`Bounds: ${bounds.minX}, ${bounds.minY} to ${bounds.maxX}, ${bounds.maxY}`);
+  console.log(`Total entities processed: ${allEntities.length}`);
+
+  // Enhanced classification logic
+  allEntities.forEach((item, index) => {
+    const layerName = item.layer.toLowerCase();
+    const color = item.color;
+    const length = item.length;
+
+    // Classify based on multiple criteria
+    let classified = false;
+
+    // 1. Entrance/Exit detection (RED areas - highest priority)
+    if (layerName.includes('door') || layerName.includes('porte') || 
+        layerName.includes('entrance') || layerName.includes('entry') ||
+        layerName.includes('exit') || layerName.includes('sortie') ||
+        layerName.includes('opening') || layerName.includes('ouverture') ||
+        color === 1 || color === 2 || color === 12) {
+      zones.entrances.push({
+        id: zones.entrances.length + 1,
+        type: 'entrance',
+        coordinates: item.coordinates,
+        color: '#FF0000',
+        layer: item.layer,
+        length: length
+      });
+      classified = true;
+    }
+    
+    // 2. Restricted areas detection (BLUE areas)
+    else if (layerName.includes('stair') || layerName.includes('escalier') ||
+             layerName.includes('elevator') || layerName.includes('ascenseur') ||
+             layerName.includes('restricted') || layerName.includes('interdit') ||
+             layerName.includes('toilet') || layerName.includes('wc') ||
+             layerName.includes('bath') || layerName.includes('bain') ||
+             layerName.includes('service') || layerName.includes('technique') ||
+             color === 4 || color === 5 || color === 6) {
+      zones.restricted.push({
+        id: zones.restricted.length + 1,
+        type: 'restricted',
+        coordinates: item.coordinates,
+        color: '#4A90E2',
+        layer: item.layer,
+        length: length
+      });
+      classified = true;
+    }
+    
+    // 3. Wall detection (BLACK lines - structural elements)
+    if (!classified) {
+      // Walls are typically long lines or on specific layers
+      if (layerName.includes('wall') || layerName.includes('mur') ||
+          layerName.includes('walls') || layerName.includes('murs') ||
+          layerName.includes('outline') || layerName.includes('contour') ||
+          layerName.includes('perimeter') || layerName.includes('perimetre') ||
+          layerName === '0' || layerName === '' || layerName === 'defpoints' ||
+          color === 0 || color === 7 || color === 8 || color === 256 ||
+          length > 50) { // Lines longer than 50 units are likely walls
+        zones.walls.push({
+          id: zones.walls.length + 1,
+          type: 'wall',
+          coordinates: item.coordinates,
+          color: '#000000',
+          layer: item.layer,
+          length: length
+        });
+        classified = true;
+      }
+    }
+
+    // 4. Fallback: treat remaining long lines as walls
+    if (!classified && length > 20) {
+      zones.walls.push({
+        id: zones.walls.length + 1,
+        type: 'wall',
+        coordinates: item.coordinates,
+        color: '#808080',
+        layer: item.layer + '_auto',
+        length: length
+      });
+    }
+  });
+
+  console.log(`Zone detection results:`);
+  console.log(`- Walls: ${zones.walls.length}`);
+  console.log(`- Entrances: ${zones.entrances.length}`);
+  console.log(`- Restricted: ${zones.restricted.length}`);
+
+  // If no zones detected, create boundary walls
+  if (zones.walls.length === 0 && zones.entrances.length === 0 && zones.restricted.length === 0) {
+    console.log("No zones detected, creating boundary walls");
+    const margin = Math.min((bounds.maxX - bounds.minX), (bounds.maxY - bounds.minY)) * 0.05;
+    zones.walls = [
+      {
+        id: 1,
+        type: 'wall',
+        coordinates: [[bounds.minX - margin, bounds.minY - margin], [bounds.maxX + margin, bounds.minY - margin]],
+        color: '#000000',
+        layer: 'boundary'
+      },
+      {
+        id: 2,
+        type: 'wall',
+        coordinates: [[bounds.maxX + margin, bounds.minY - margin], [bounds.maxX + margin, bounds.maxY + margin]],
+        color: '#000000',
+        layer: 'boundary'
+      },
+      {
+        id: 3,
+        type: 'wall',
+        coordinates: [[bounds.maxX + margin, bounds.maxY + margin], [bounds.minX - margin, bounds.maxY + margin]],
+        color: '#000000',
+        layer: 'boundary'
+      },
+      {
+        id: 4,
+        type: 'wall',
+        coordinates: [[bounds.minX - margin, bounds.maxY + margin], [bounds.minX - margin, bounds.minY - margin]],
+        color: '#000000',
+        layer: 'boundary'
+      }
+    ];
   }
 
   return {
     zones,
     bounds,
-    layers: dxf.layers || [],
-    entityCount: dxf.entities?.length || 0
+    layers: dxf.layers || {},
+    entityCount: allEntities.length
   };
 }
 
@@ -851,52 +930,99 @@ async function processAnalysis(analysisId: number) {
 function generateIlots(bounds: any, zones: any, distribution: any, config: any) {
   const ilots: any[] = [];
   const obstacles: any[] = [];
+  const clearanceZones: any[] = [];
   
-  // Convert zones to obstacles
-  [...zones.walls, ...zones.restricted, ...zones.entrances].forEach((zone: any) => {
-    if (zone.coordinates && zone.coordinates.length >= 2) {
-      const xs = zone.coordinates.map((c: number[]) => c[0]);
-      const ys = zone.coordinates.map((c: number[]) => c[1]);
+  console.log('Starting îlot generation...');
+  console.log('Distribution:', distribution);
+  
+  // Process obstacles with different clearance rules
+  zones.walls.forEach((wall: any) => {
+    if (wall.coordinates && wall.coordinates.length >= 2) {
+      const xs = wall.coordinates.map((c: number[]) => c[0]);
+      const ys = wall.coordinates.map((c: number[]) => c[1]);
+      // Walls can be touched by îlots (no clearance)
       obstacles.push({
+        type: 'wall',
         minX: Math.min(...xs),
         minY: Math.min(...ys),
         maxX: Math.max(...xs),
-        maxY: Math.max(...ys)
+        maxY: Math.max(...ys),
+        clearance: 0
       });
     }
   });
 
-  // Define size ranges
+  // Restricted areas (BLUE) - îlots cannot be placed here
+  zones.restricted.forEach((restricted: any) => {
+    if (restricted.coordinates && restricted.coordinates.length >= 2) {
+      const xs = restricted.coordinates.map((c: number[]) => c[0]);
+      const ys = restricted.coordinates.map((c: number[]) => c[1]);
+      obstacles.push({
+        type: 'restricted',
+        minX: Math.min(...xs) - 0.5,
+        minY: Math.min(...ys) - 0.5,
+        maxX: Math.max(...xs) + 0.5,
+        maxY: Math.max(...ys) + 0.5,
+        clearance: 0.5
+      });
+    }
+  });
+
+  // Entrance areas (RED) - îlots cannot be placed here with larger clearance
+  zones.entrances.forEach((entrance: any) => {
+    if (entrance.coordinates && entrance.coordinates.length >= 2) {
+      const xs = entrance.coordinates.map((c: number[]) => c[0]);
+      const ys = entrance.coordinates.map((c: number[]) => c[1]);
+      clearanceZones.push({
+        type: 'entrance',
+        minX: Math.min(...xs) - 2.0, // 2m clearance from entrances
+        minY: Math.min(...ys) - 2.0,
+        maxX: Math.max(...xs) + 2.0,
+        maxY: Math.max(...ys) + 2.0,
+        clearance: 2.0
+      });
+    }
+  });
+
+  // Define size ranges with better area calculations
+  const totalArea = (bounds.maxX - bounds.minX) * (bounds.maxY - bounds.minY);
+  const usableArea = totalArea * 0.6; // Assume 60% is usable for îlots
+  
   const sizeRanges = [
-    { key: 'size0to1', min: 0.5, max: 1.0, percentage: distribution.size0to1 || 0 },
-    { key: 'size1to3', min: 1.0, max: 3.0, percentage: distribution.size1to3 || 0 },
-    { key: 'size3to5', min: 3.0, max: 5.0, percentage: distribution.size3to5 || 0 },
-    { key: 'size5to10', min: 5.0, max: 10.0, percentage: distribution.size5to10 || 0 }
+    { key: 'size0to1', min: 6, max: 12, percentage: distribution.size0to1 || 10, name: '6-12m²' },
+    { key: 'size1to3', min: 12, max: 25, percentage: distribution.size1to3 || 25, name: '12-25m²' },
+    { key: 'size3to5', min: 25, max: 40, percentage: distribution.size3to5 || 30, name: '25-40m²' },
+    { key: 'size5to10', min: 40, max: 80, percentage: distribution.size5to10 || 35, name: '40-80m²' }
   ];
 
   let currentId = 1;
-  const availableArea = (bounds.maxX - bounds.minX) * (bounds.maxY - bounds.minY);
   
+  // Calculate target counts for each size range
   sizeRanges.forEach(range => {
     if (range.percentage === 0) return;
     
-    const targetArea = availableArea * (range.percentage / 100);
-    let placedArea = 0;
-    let attempts = 0;
-    const maxAttempts = 1000;
+    const targetArea = usableArea * (range.percentage / 100);
+    const avgIlotSize = (range.min + range.max) / 2;
+    const targetCount = Math.floor(targetArea / avgIlotSize);
     
-    while (placedArea < targetArea && attempts < maxAttempts) {
+    console.log(`Generating ${targetCount} îlots for ${range.name} (${range.percentage}%)`);
+    
+    let placedCount = 0;
+    let attempts = 0;
+    const maxAttempts = targetCount * 50;
+    
+    while (placedCount < targetCount && attempts < maxAttempts) {
       attempts++;
       
-      // Generate random îlot size within range
-      const area = Math.random() * (range.max - range.min) + range.min;
-      const aspectRatio = 0.5 + Math.random() * 0.5; // 0.5 to 1.0
+      // Generate îlot with realistic proportions
+      const area = range.min + Math.random() * (range.max - range.min);
+      const aspectRatio = 0.6 + Math.random() * 0.8; // 0.6 to 1.4
       
       const width = Math.sqrt(area / aspectRatio);
       const height = area / width;
       
       // Try to place the îlot
-      const position = findAvailablePosition(bounds, obstacles, ilots, width, height);
+      const position = findAvailablePositionEnhanced(bounds, obstacles, clearanceZones, ilots, width, height);
       
       if (position) {
         const ilot = {
@@ -906,48 +1032,66 @@ function generateIlots(bounds: any, zones: any, distribution: any, config: any) 
           width,
           height,
           area,
-          type: range.key.replace('size', '') + 'm²'
+          type: range.name,
+          category: range.key
         };
         
         ilots.push(ilot);
-        placedArea += area;
+        placedCount++;
         
         // Add placed îlot as obstacle for future placements
         obstacles.push({
-          minX: ilot.x,
-          minY: ilot.y,
-          maxX: ilot.x + ilot.width,
-          maxY: ilot.y + ilot.height
+          type: 'ilot',
+          minX: ilot.x - 0.5, // 0.5m clearance between îlots
+          minY: ilot.y - 0.5,
+          maxX: ilot.x + ilot.width + 0.5,
+          maxY: ilot.y + ilot.height + 0.5,
+          clearance: 0.5
         });
       }
+      
+      if (attempts % 1000 === 0) {
+        console.log(`Placed ${placedCount}/${targetCount} îlots for ${range.name} (${attempts} attempts)`);
+      }
     }
+    
+    console.log(`Completed ${range.name}: ${placedCount}/${targetCount} îlots placed`);
   });
 
+  console.log(`Total îlots generated: ${ilots.length}`);
   return ilots;
 }
 
-function findAvailablePosition(bounds: any, obstacles: any[], existingIlots: any[], width: number, height: number) {
-  const step = Math.min(width, height) / 4; // Adaptive step size
-  const clearance = 0.5; // Minimum clearance
+function findAvailablePositionEnhanced(bounds: any, obstacles: any[], clearanceZones: any[], existingIlots: any[], width: number, height: number) {
+  const step = Math.max(1, Math.min(width, height) / 8); // Finer grid
+  const margin = 2; // 2m margin from boundaries
   
-  for (let y = bounds.minY; y <= bounds.maxY - height; y += step) {
-    for (let x = bounds.minX; x <= bounds.maxX - width; x += step) {
-      const testRect = {
-        minX: x - clearance,
-        minY: y - clearance,
-        maxX: x + width + clearance,
-        maxY: y + height + clearance
-      };
-      
-      // Check collision with obstacles
-      const hasCollision = obstacles.some(obstacle => 
-        !(testRect.maxX < obstacle.minX || 
-          testRect.minX > obstacle.maxX || 
-          testRect.maxY < obstacle.minY || 
-          testRect.minY > obstacle.maxY)
-      );
-      
-      if (!hasCollision) {
+  // Create bounds with margin
+  const searchBounds = {
+    minX: bounds.minX + margin,
+    minY: bounds.minY + margin,
+    maxX: bounds.maxX - margin - width,
+    maxY: bounds.maxY - margin - height
+  };
+  
+  if (searchBounds.maxX <= searchBounds.minX || searchBounds.maxY <= searchBounds.minY) {
+    return null; // Not enough space
+  }
+  
+  // Try random positions first (faster for sparse layouts)
+  for (let randomAttempts = 0; randomAttempts < 100; randomAttempts++) {
+    const x = searchBounds.minX + Math.random() * (searchBounds.maxX - searchBounds.minX);
+    const y = searchBounds.minY + Math.random() * (searchBounds.maxY - searchBounds.minY);
+    
+    if (isPositionValid(x, y, width, height, obstacles, clearanceZones)) {
+      return { x, y };
+    }
+  }
+  
+  // Systematic grid search
+  for (let y = searchBounds.minY; y <= searchBounds.maxY; y += step) {
+    for (let x = searchBounds.minX; x <= searchBounds.maxX; x += step) {
+      if (isPositionValid(x, y, width, height, obstacles, clearanceZones)) {
         return { x, y };
       }
     }
@@ -956,18 +1100,58 @@ function findAvailablePosition(bounds: any, obstacles: any[], existingIlots: any
   return null;
 }
 
+function isPositionValid(x: number, y: number, width: number, height: number, obstacles: any[], clearanceZones: any[]): boolean {
+  const testRect = {
+    minX: x,
+    minY: y,
+    maxX: x + width,
+    maxY: y + height
+  };
+  
+  // Check against obstacles (walls, restricted areas, other îlots)
+  for (const obstacle of obstacles) {
+    if (rectanglesOverlap(testRect, obstacle)) {
+      return false;
+    }
+  }
+  
+  // Check against clearance zones (entrances with larger clearance)
+  for (const zone of clearanceZones) {
+    if (rectanglesOverlap(testRect, zone)) {
+      return false;
+    }
+  }
+  
+  return true;
+}
+
+function rectanglesOverlap(rect1: any, rect2: any): boolean {
+  return !(rect1.maxX <= rect2.minX || 
+           rect1.minX >= rect2.maxX || 
+           rect1.maxY <= rect2.minY || 
+           rect1.minY >= rect2.maxY);
+}
+
 function generateCorridors(ilots: any[], corridorWidth: number) {
   const corridors: any[] = [];
   let currentId = 1;
   
-  // Group îlots by rows (similar Y coordinates)
+  console.log(`Generating corridors for ${ilots.length} îlots with width ${corridorWidth}m`);
+  
+  if (ilots.length === 0) return corridors;
+  
+  // Group îlots by approximate rows
+  const rowTolerance = corridorWidth * 3; // Larger tolerance for row grouping
   const rows: any[][] = [];
-  const tolerance = corridorWidth * 2;
   
   ilots.forEach(ilot => {
     let addedToRow = false;
     for (const row of rows) {
-      if (Math.abs(row[0].y - ilot.y) < tolerance) {
+      // Check if îlot belongs to this row (similar Y coordinates)
+      const rowCenterY = row.reduce((sum, i) => sum + i.y + i.height/2, 0) / row.length;
+      const ilotCenterY = ilot.y + ilot.height/2;
+      
+      if (Math.abs(rowCenterY - ilotCenterY) < rowTolerance) {
         row.push(ilot);
         addedToRow = true;
         break;
@@ -981,21 +1165,29 @@ function generateCorridors(ilots: any[], corridorWidth: number) {
   // Sort îlots within each row by X coordinate
   rows.forEach(row => row.sort((a, b) => a.x - b.x));
   
+  console.log(`Organized îlots into ${rows.length} rows`);
+  
   // Generate horizontal corridors between îlots in the same row
-  rows.forEach(row => {
+  rows.forEach((row, rowIndex) => {
     for (let i = 0; i < row.length - 1; i++) {
       const ilot1 = row[i];
       const ilot2 = row[i + 1];
       
       const gap = ilot2.x - (ilot1.x + ilot1.width);
-      if (gap > corridorWidth) {
+      
+      if (gap >= corridorWidth * 1.2) { // Need at least 20% more space than corridor width
+        const corridorX = ilot1.x + ilot1.width;
+        const corridorY = Math.min(ilot1.y, ilot2.y);
+        const corridorHeight = Math.max(ilot1.y + ilot1.height, ilot2.y + ilot2.height) - corridorY;
+        
         corridors.push({
           id: currentId++,
-          x: ilot1.x + ilot1.width,
-          y: Math.min(ilot1.y, ilot2.y),
+          x: corridorX,
+          y: corridorY,
           width: gap,
-          height: corridorWidth,
-          type: 'corridor'
+          height: Math.max(corridorWidth, corridorHeight),
+          type: 'horizontal_corridor',
+          connects: [ilot1.id, ilot2.id]
         });
       }
     }
@@ -1006,24 +1198,71 @@ function generateCorridors(ilots: any[], corridorWidth: number) {
     const row1 = rows[i];
     const row2 = rows[i + 1];
     
-    const minY1 = Math.min(...row1.map(ilot => ilot.y + ilot.height));
-    const maxY2 = Math.max(...row2.map(ilot => ilot.y));
+    if (row1.length === 0 || row2.length === 0) continue;
     
-    if (maxY2 - minY1 > corridorWidth) {
-      const minX = Math.min(...row1.map(ilot => ilot.x), ...row2.map(ilot => ilot.x));
-      const maxX = Math.max(...row1.map(ilot => ilot.x + ilot.width), ...row2.map(ilot => ilot.x + ilot.width));
+    // Find the gap between rows
+    const row1MaxY = Math.max(...row1.map(ilot => ilot.y + ilot.height));
+    const row2MinY = Math.min(...row2.map(ilot => ilot.y));
+    const gapHeight = row2MinY - row1MaxY;
+    
+    if (gapHeight >= corridorWidth * 1.2) {
+      // Find overlapping X ranges between rows
+      const row1MinX = Math.min(...row1.map(ilot => ilot.x));
+      const row1MaxX = Math.max(...row1.map(ilot => ilot.x + ilot.width));
+      const row2MinX = Math.min(...row2.map(ilot => ilot.x));
+      const row2MaxX = Math.max(...row2.map(ilot => ilot.x + ilot.width));
       
-      corridors.push({
-        id: currentId++,
-        x: minX,
-        y: minY1,
-        width: maxX - minX,
-        height: maxY2 - minY1,
-        type: 'corridor'
-      });
+      const overlapMinX = Math.max(row1MinX, row2MinX);
+      const overlapMaxX = Math.min(row1MaxX, row2MaxX);
+      
+      if (overlapMaxX > overlapMinX) {
+        corridors.push({
+          id: currentId++,
+          x: overlapMinX,
+          y: row1MaxY,
+          width: overlapMaxX - overlapMinX,
+          height: gapHeight,
+          type: 'vertical_corridor',
+          connects: [`row_${i}`, `row_${i+1}`]
+        });
+      }
     }
   }
   
+  // Generate main circulation corridors if needed
+  if (corridors.length === 0 && ilots.length > 0) {
+    console.log("No natural corridors found, generating main circulation path");
+    
+    // Find the center area and create a main corridor
+    const allMinX = Math.min(...ilots.map(i => i.x));
+    const allMaxX = Math.max(...ilots.map(i => i.x + i.width));
+    const allMinY = Math.min(...ilots.map(i => i.y));
+    const allMaxY = Math.max(...ilots.map(i => i.y + i.height));
+    
+    const centerX = (allMinX + allMaxX) / 2;
+    const centerY = (allMinY + allMaxY) / 2;
+    
+    // Create a cross-shaped main corridor
+    corridors.push({
+      id: currentId++,
+      x: centerX - corridorWidth/2,
+      y: allMinY,
+      width: corridorWidth,
+      height: allMaxY - allMinY,
+      type: 'main_vertical_corridor'
+    });
+    
+    corridors.push({
+      id: currentId++,
+      x: allMinX,
+      y: centerY - corridorWidth/2,
+      width: allMaxX - allMinX,
+      height: corridorWidth,
+      type: 'main_horizontal_corridor'
+    });
+  }
+  
+  console.log(`Generated ${corridors.length} corridors`);
   return corridors;
 }
 
