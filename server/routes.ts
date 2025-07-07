@@ -37,10 +37,12 @@ const upload = multer({
   dest: 'uploads/',
   limits: { fileSize: 50 * 1024 * 1024 }, // 50MB limit
   fileFilter: (req: any, file: Express.Multer.File, cb: multer.FileFilterCallback) => {
-    if (file.mimetype === 'application/octet-stream' || file.originalname.endsWith('.dxf')) {
+    if (file.mimetype === 'application/octet-stream' || 
+        file.originalname.endsWith('.dxf') || 
+        file.originalname.endsWith('.dwg')) {
       cb(null, true);
     } else {
-      cb(new Error('Only DXF files are allowed'));
+      cb(new Error('Only DXF and DWG files are allowed'));
     }
   }
 });
@@ -87,9 +89,9 @@ export async function registerRoutes(app: Express): Promise<Server> {
       if (req.file) {
         const fileExtension = path.extname(req.file.originalname).toLowerCase();
         
-        if (fileExtension === '.dxf') {
+        if (fileExtension === '.dxf' || fileExtension === '.dwg') {
           try {
-            // Parse DXF file
+            // Parse DXF/DWG file
             const dxfContent = fs.readFileSync(req.file.path, 'utf8');
             const parser = new DxfParser();
             const parsed = parser.parseSync(dxfContent);
@@ -107,12 +109,12 @@ export async function registerRoutes(app: Express): Promise<Server> {
             // Clean up uploaded file
             fs.unlinkSync(req.file.path);
           } catch (dxfError) {
-            console.error("DXF parsing error:", dxfError);
+            console.error("DXF/DWG parsing error:", dxfError);
             // Clean up uploaded file even if parsing fails
             if (fs.existsSync(req.file.path)) {
               fs.unlinkSync(req.file.path);
             }
-            console.log("Continuing project creation without DXF parsing");
+            console.log("Continuing project creation without DXF/DWG parsing");
           }
         } else if (['.png', '.jpg', '.jpeg'].includes(fileExtension)) {
           try {
@@ -144,7 +146,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
         } else {
           // Unsupported file type
           fs.unlinkSync(req.file.path);
-          return res.status(400).json({ message: "Unsupported file type. Please upload DXF, PNG, JPG, or JPEG files." });
+          return res.status(400).json({ message: "Unsupported file type. Please upload DXF, DWG, PNG, JPG, or JPEG files." });
         }
       }
 
