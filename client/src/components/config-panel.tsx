@@ -178,6 +178,9 @@ export default function ConfigPanel({
             {isUploading ? 'Uploading...' : 'Drop DXF file here or click to browse'}
           </p>
           <p className="text-text-secondary text-sm">Supported formats: DXF, DWG</p>
+          {!projectName.trim() && (
+            <p className="text-accent-orange text-xs mt-2">⚠️ Please enter a project name first</p>
+          )}
           <input
             ref={fileInputRef}
             type="file"

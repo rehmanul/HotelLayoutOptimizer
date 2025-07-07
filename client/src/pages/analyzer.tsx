@@ -53,10 +53,19 @@ export default function Analyzer() {
         description: "Your floor plan project has been created successfully."
       });
     },
-    onError: () => {
+    onError: (error: any) => {
+      console.error("Project creation error:", error);
+      let errorMessage = "Failed to create project. Please try again.";
+      
+      if (error?.response?.data?.errors) {
+        errorMessage = error.response.data.errors.join(', ');
+      } else if (error?.response?.data?.message) {
+        errorMessage = error.response.data.message;
+      }
+      
       toast({
         title: "Error",
-        description: "Failed to create project. Please try again.",
+        description: errorMessage,
         variant: "destructive"
       });
     }
