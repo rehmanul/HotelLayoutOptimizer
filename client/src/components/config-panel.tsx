@@ -139,14 +139,22 @@ export default function ConfigPanel({
         
         {/* Project Name Input */}
         <div className="mb-4">
-          <label className="text-text-primary text-sm font-medium mb-2 block">Project Name</label>
+          <label className="text-text-primary text-sm font-medium mb-2 block">
+            Project Name <span className="text-accent-orange">*</span>
+          </label>
           <input
             type="text"
             value={projectName}
             onChange={(e) => setProjectName(e.target.value)}
-            placeholder="Enter project name"
-            className="w-full bg-dark-tertiary text-text-primary rounded-lg px-3 py-2 border border-dark-tertiary focus:border-accent-blue focus:outline-none"
+            placeholder="Enter project name (required)"
+            className={`w-full bg-dark-tertiary text-text-primary rounded-lg px-3 py-2 border focus:outline-none transition-colors ${
+              projectName.trim() ? 'border-dark-tertiary focus:border-accent-blue' : 'border-accent-orange focus:border-accent-orange'
+            }`}
+            required
           />
+          {!projectName.trim() && (
+            <p className="text-accent-orange text-xs mt-1">Project name is required</p>
+          )}
         </div>
         
         {/* Project Description Input */}
@@ -162,16 +170,30 @@ export default function ConfigPanel({
         </div>
         
         <div 
-          className={`upload-zone rounded-lg p-8 text-center cursor-pointer transition-all duration-300 ${
-            dragOver ? 'border-accent-blue bg-accent-blue bg-opacity-10' : 'border-2 border-dashed border-dark-tertiary hover:border-accent-blue hover:bg-accent-blue hover:bg-opacity-5'
+          className={`upload-zone rounded-lg p-8 text-center transition-all duration-300 ${
+            !projectName.trim() 
+              ? 'border-2 border-dashed border-gray-600 bg-gray-800 bg-opacity-50 cursor-not-allowed' 
+              : dragOver 
+                ? 'border-accent-blue bg-accent-blue bg-opacity-10 cursor-pointer' 
+                : 'border-2 border-dashed border-dark-tertiary hover:border-accent-blue hover:bg-accent-blue hover:bg-opacity-5 cursor-pointer'
           }`}
           onDragOver={(e) => {
             e.preventDefault();
-            setDragOver(true);
+            if (projectName.trim()) setDragOver(true);
           }}
           onDragLeave={() => setDragOver(false)}
-          onDrop={handleDrop}
-          onClick={() => fileInputRef.current?.click()}
+          onDrop={projectName.trim() ? handleDrop : undefined}
+          onClick={() => {
+            if (projectName.trim()) {
+              fileInputRef.current?.click();
+            } else {
+              toast({
+                title: "Project Name Required",
+                description: "Please enter a project name before uploading.",
+                variant: "destructive"
+              });
+            }
+          }}
         >
           <i className="fas fa-cloud-upload-alt text-4xl text-text-secondary mb-4"></i>
           <p className="text-text-primary font-medium mb-2">

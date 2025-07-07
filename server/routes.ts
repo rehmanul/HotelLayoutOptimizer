@@ -54,6 +54,8 @@ export async function registerRoutes(app: Express): Promise<Server> {
 
   app.post("/api/projects", upload.single('dxfFile'), async (req: MulterRequest, res) => {
     try {
+      console.log("Request body:", req.body);
+      console.log("File info:", req.file);
       const { name, description } = req.body;
       let dxfData = null;
       let parsedData = null;

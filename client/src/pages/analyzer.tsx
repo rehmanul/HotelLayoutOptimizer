@@ -116,10 +116,17 @@ export default function Analyzer() {
   });
 
   const handleProjectUpload = (file: File, projectName: string, description: string) => {
+    console.log("Creating project with:", { projectName, description, fileName: file.name });
     const formData = new FormData();
     formData.append('dxfFile', file);
     formData.append('name', projectName);
     formData.append('description', description);
+    
+    // Debug FormData contents
+    for (let [key, value] of formData.entries()) {
+      console.log(`FormData ${key}:`, value);
+    }
+    
     createProjectMutation.mutate(formData);
   };
 
