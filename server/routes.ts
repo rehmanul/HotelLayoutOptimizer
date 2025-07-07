@@ -9,6 +9,7 @@ import fs from "fs";
 import path from "path";
 import PDFDocument from "pdfkit";
 import { Jimp } from "jimp";
+import { processAnalysis } from "./analysis-processor";
 
 // Initialize database with default user
 async function initializeDatabase() {
@@ -230,7 +231,9 @@ export async function registerRoutes(app: Express): Promise<Server> {
       const analysis = await storage.createAnalysis(analysisData);
       
       // Start analysis process asynchronously
-      processAnalysis(analysis.id);
+      processAnalysis(analysis.id).catch(err => {
+        console.error("Analysis processing error:", err);
+      });
       
       res.json(analysis);
     } catch (error) {

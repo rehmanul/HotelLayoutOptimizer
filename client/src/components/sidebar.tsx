@@ -1,4 +1,5 @@
 import { useState } from "react";
+import { Link, useLocation } from "wouter";
 import type { Project } from "@shared/schema";
 
 interface SidebarProps {
@@ -18,14 +19,21 @@ export default function Sidebar({
 }: SidebarProps) {
   const [showProjects, setShowProjects] = useState(false);
 
+  const [location] = useLocation();
+  
   const navItems = [
-    { id: 'analysis', icon: 'fas fa-chart-line', label: 'Analysis', color: 'text-accent-blue' },
-    { id: 'results', icon: 'fas fa-chart-bar', label: 'Results', color: 'text-text-secondary' },
-    { id: 'visualization', icon: 'fas fa-eye', label: 'Visualization', color: 'text-text-secondary' },
-    { id: 'optimization', icon: 'fas fa-cog', label: 'AI Optimization', color: 'text-text-secondary' },
-    { id: 'analytics', icon: 'fas fa-analytics', label: 'Analytics', color: 'text-text-secondary' },
-    { id: 'collaboration', icon: 'fas fa-users', label: 'Collaboration', color: 'text-text-secondary' },
-    { id: 'reports', icon: 'fas fa-file-alt', label: 'Reports', color: 'text-text-secondary' },
+    { id: 'analysis', icon: 'fas fa-chart-line', label: 'Analysis', color: 'text-accent-blue', path: '/' },
+    { id: 'results', icon: 'fas fa-chart-bar', label: 'Results', color: 'text-text-secondary', path: '/results' },
+    { id: 'visualization', icon: 'fas fa-eye', label: 'Visualization', color: 'text-text-secondary', path: '/visualization' },
+    { id: 'ai-optimization', icon: 'fas fa-cog', label: 'AI Optimization', color: 'text-text-secondary', path: '/ai-optimization' },
+    { id: 'analytics', icon: 'fas fa-analytics', label: 'Analytics', color: 'text-text-secondary', path: '/analytics' },
+    { id: 'collaboration', icon: 'fas fa-users', label: 'Collaboration', color: 'text-text-secondary', path: '/collaboration' },
+    { id: 'reports', icon: 'fas fa-file-alt', label: 'Reports', color: 'text-text-secondary', path: '/reports' },
+  ];
+  
+  const adminItems = [
+    { id: 'admin', icon: 'fas fa-shield-alt', label: 'Admin', color: 'text-text-secondary', path: '/admin' },
+    { id: 'settings', icon: 'fas fa-wrench', label: 'Settings', color: 'text-text-secondary', path: '/settings' },
   ];
 
   return (
@@ -59,24 +67,32 @@ export default function Sidebar({
       {/* Navigation */}
       <nav className="flex-1 p-4 space-y-2">
         {navItems.map((item) => (
-          <div
-            key={item.id}
-            className={`nav-item px-3 py-2 rounded-lg cursor-pointer flex items-center space-x-3 transition-all duration-200 hover:bg-accent-blue hover:bg-opacity-10 ${
-              activeTab === item.id ? 'bg-accent-blue text-white' : ''
-            }`}
-            onClick={() => onTabChange(item.id)}
-          >
-            <i className={`${item.icon} ${activeTab === item.id ? 'text-white' : item.color}`}></i>
-            <span className="text-sm font-medium">{item.label}</span>
-          </div>
+          <Link key={item.id} href={item.path}>
+            <div
+              className={`nav-item px-3 py-2 rounded-lg cursor-pointer flex items-center space-x-3 transition-all duration-200 hover:bg-accent-blue hover:bg-opacity-10 ${
+                location === item.path ? 'bg-accent-blue text-white' : ''
+              }`}
+            >
+              <i className={`${item.icon} ${location === item.path ? 'text-white' : item.color}`}></i>
+              <span className="text-sm font-medium">{item.label}</span>
+            </div>
+          </Link>
         ))}
         
         <div className="mt-8 pt-4 border-t border-dark-tertiary">
           <p className="text-xs text-text-secondary font-medium mb-2 px-3">Admin</p>
-          <div className="nav-item px-3 py-2 rounded-lg cursor-pointer flex items-center space-x-3 transition-all duration-200 hover:bg-accent-blue hover:bg-opacity-10">
-            <i className="fas fa-wrench text-text-secondary"></i>
-            <span className="text-sm font-medium">Settings</span>
-          </div>
+          {adminItems.map((item) => (
+            <Link key={item.id} href={item.path}>
+              <div
+                className={`nav-item px-3 py-2 rounded-lg cursor-pointer flex items-center space-x-3 transition-all duration-200 hover:bg-accent-blue hover:bg-opacity-10 ${
+                  location === item.path ? 'bg-accent-blue text-white' : ''
+                }`}
+              >
+                <i className={`${item.icon} ${location === item.path ? 'text-white' : item.color}`}></i>
+                <span className="text-sm font-medium">{item.label}</span>
+              </div>
+            </Link>
+          ))}
         </div>
       </nav>
       
