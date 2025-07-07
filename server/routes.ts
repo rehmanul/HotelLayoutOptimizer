@@ -61,23 +61,34 @@ export async function registerRoutes(app: Express): Promise<Server> {
       let parsedData = null;
 
       if (req.file) {
-        // Parse DXF file
-        const dxfContent = fs.readFileSync(req.file.path, 'utf8');
-        const parser = new DxfParser();
-        const parsed = parser.parseSync(dxfContent);
-        
-        parsedData = await processDxfData(parsed);
-        
-        dxfData = {
-          originalName: req.file.originalname,
-          filename: req.file.filename,
-          path: req.file.path,
-          size: req.file.size,
-          parsed: parsedData
-        };
+        try {
+          // Parse DXF file
+          const dxfContent = fs.readFileSync(req.file.path, 'utf8');
+          const parser = new DxfParser();
+          const parsed = parser.parseSync(dxfContent);
+          
+          parsedData = await processDxfData(parsed);
+          
+          dxfData = {
+            originalName: req.file.originalname,
+            filename: req.file.filename,
+            path: req.file.path,
+            size: req.file.size,
+            parsed: parsedData
+          };
 
-        // Clean up uploaded file
-        fs.unlinkSync(req.file.path);
+          // Clean up uploaded file
+          fs.unlinkSync(req.file.path);
+        } catch (dxfError) {
+          console.error("DXF parsing error:", dxfError);
+          // Clean up uploaded file even if parsing fails
+          if (fs.existsSync(req.file.path)) {
+            fs.unlinkSync(req.file.path);
+          }
+          
+          // Continue without DXF data but don't fail the project creation
+          console.log("Continuing project creation without DXF parsing");
+        }
       }
 
       // Validate required fields
@@ -470,52 +481,78 @@ async function processDxfData(dxf: any) {
   };
 
   // Process entities from all layers
-  if (dxf.entities) {
+  if (dxf.entities && Array.isArray(dxf.entities)) {
     dxf.entities.forEach((entity: any) => {
-      // Update bounds
-      if (entity.vertices) {
-        entity.vertices.forEach((vertex: any) => {
-          bounds.minX = Math.min(bounds.minX, vertex.x);
-          bounds.minY = Math.min(bounds.minY, vertex.y);
-          bounds.maxX = Math.max(bounds.maxX, vertex.x);
-          bounds.maxY = Math.max(bounds.maxY, vertex.y);
-        });
-      }
-
-      // Classify entities based on layer names and properties
-      const layerName = entity.layer?.toLowerCase() || '';
-      const color = entity.color || 0;
-
-      if (entity.type === 'LINE' || entity.type === 'POLYLINE' || entity.type === 'LWPOLYLINE') {
-        const coordinates = extractCoordinates(entity);
-        
-        if (layerName.includes('wall') || layerName.includes('mur') || color === 0) {
-          zones.walls.push({
-            id: zones.walls.length + 1,
-            type: 'wall',
-            coordinates,
-            color: '#000000',
-            layer: entity.layer
-          });
-        } else if (layerName.includes('restricted') || layerName.includes('stair') || 
-                   layerName.includes('elevator') || color === 4) {
-          zones.restricted.push({
-            id: zones.restricted.length + 1,
-            type: 'restricted',
-            coordinates,
-            color: '#4A90E2',
-            layer: entity.layer
-          });
-        } else if (layerName.includes('entrance') || layerName.includes('door') || 
-                   layerName.includes('entry') || color === 1) {
-          zones.entrances.push({
-            id: zones.entrances.length + 1,
-            type: 'entrance',
-            coordinates,
-            color: '#D0021B',
-            layer: entity.layer
+      try {
+        // Update bounds
+        if (entity.vertices && Array.isArray(entity.vertices)) {
+          entity.vertices.forEach((vertex: any) => {
+            if (vertex && typeof vertex.x === 'number' && typeof vertex.y === 'number') {
+              bounds.minX = Math.min(bounds.minX, vertex.x);
+              bounds.minY = Math.min(bounds.minY, vertex.y);
+              bounds.maxX = Math.max(bounds.maxX, vertex.x);
+              bounds.maxY = Math.max(bounds.maxY, vertex.y);
+            }
           });
         }
+
+        // Update bounds for LINE entities
+        if (entity.type === 'LINE' && entity.startPoint && entity.endPoint) {
+          if (typeof entity.startPoint.x === 'number' && typeof entity.startPoint.y === 'number') {
+            bounds.minX = Math.min(bounds.minX, entity.startPoint.x);
+            bounds.minY = Math.min(bounds.minY, entity.startPoint.y);
+            bounds.maxX = Math.max(bounds.maxX, entity.startPoint.x);
+            bounds.maxY = Math.max(bounds.maxY, entity.startPoint.y);
+          }
+          if (typeof entity.endPoint.x === 'number' && typeof entity.endPoint.y === 'number') {
+            bounds.minX = Math.min(bounds.minX, entity.endPoint.x);
+            bounds.minY = Math.min(bounds.minY, entity.endPoint.y);
+            bounds.maxX = Math.max(bounds.maxX, entity.endPoint.x);
+            bounds.maxY = Math.max(bounds.maxY, entity.endPoint.y);
+          }
+        }
+
+        // Classify entities based on layer names and properties
+        const layerName = entity.layer?.toLowerCase() || '';
+        const color = entity.color || 0;
+
+        if (entity.type === 'LINE' || entity.type === 'POLYLINE' || entity.type === 'LWPOLYLINE') {
+          const coordinates = extractCoordinates(entity);
+          
+          // Only add entities with valid coordinates
+          if (coordinates.length > 0) {
+            if (layerName.includes('wall') || layerName.includes('mur') || color === 0) {
+              zones.walls.push({
+                id: zones.walls.length + 1,
+                type: 'wall',
+                coordinates,
+                color: '#000000',
+                layer: entity.layer
+              });
+            } else if (layerName.includes('restricted') || layerName.includes('stair') || 
+                       layerName.includes('elevator') || color === 4) {
+              zones.restricted.push({
+                id: zones.restricted.length + 1,
+                type: 'restricted',
+                coordinates,
+                color: '#4A90E2',
+                layer: entity.layer
+              });
+            } else if (layerName.includes('entrance') || layerName.includes('door') || 
+                       layerName.includes('entry') || color === 1) {
+              zones.entrances.push({
+                id: zones.entrances.length + 1,
+                type: 'entrance',
+                coordinates,
+                color: '#D0021B',
+                layer: entity.layer
+              });
+            }
+          }
+        }
+      } catch (error) {
+        console.warn('Error processing entity:', error);
+        // Continue processing other entities
       }
     });
   }
@@ -536,15 +573,25 @@ async function processDxfData(dxf: any) {
 function extractCoordinates(entity: any): number[][] {
   const coords: number[][] = [];
   
-  if (entity.type === 'LINE') {
-    coords.push([entity.startPoint.x, entity.startPoint.y]);
-    coords.push([entity.endPoint.x, entity.endPoint.y]);
-  } else if (entity.type === 'POLYLINE' || entity.type === 'LWPOLYLINE') {
-    if (entity.vertices) {
-      entity.vertices.forEach((vertex: any) => {
-        coords.push([vertex.x, vertex.y]);
-      });
+  try {
+    if (entity.type === 'LINE') {
+      if (entity.startPoint && entity.endPoint && 
+          typeof entity.startPoint.x === 'number' && typeof entity.startPoint.y === 'number' &&
+          typeof entity.endPoint.x === 'number' && typeof entity.endPoint.y === 'number') {
+        coords.push([entity.startPoint.x, entity.startPoint.y]);
+        coords.push([entity.endPoint.x, entity.endPoint.y]);
+      }
+    } else if (entity.type === 'POLYLINE' || entity.type === 'LWPOLYLINE') {
+      if (entity.vertices && Array.isArray(entity.vertices)) {
+        entity.vertices.forEach((vertex: any) => {
+          if (vertex && typeof vertex.x === 'number' && typeof vertex.y === 'number') {
+            coords.push([vertex.x, vertex.y]);
+          }
+        });
+      }
     }
+  } catch (error) {
+    console.warn('Error extracting coordinates from entity:', error);
   }
   
   return coords;
